@@ -1,4 +1,4 @@
-![Simple Pygame logo](...)
+![Simple Pygame logo](https://raw.githubusercontent.com/YoutuberTom/Simple_Pygame/main/docs/images/Logo.png)
 
 ### Simple Pygame is a [Python](https://www.python.org/) library that provides many features using [Pygame](https://www.pygame.org/news) and other libraries. It can help you create multimedia applications much easier and save you a lot of time.
 
@@ -30,4 +30,4 @@
 
 # **License:**
 
-### This library is distributed under [MIT license](...).
+### This library is distributed under [MIT license](https://github.com/YoutuberTom/Simple_Pygame/blob/main/LICENSE).
