@@ -8,9 +8,17 @@
 
 # **Dependencies:**
 
-- ### pygame >= 2.1.2
-- ### moviepy >= 1.0.3
-- ### pyaudio >= 0.2.13
+## Python libraries:
+
+| Library | Version |
+|:--------|:--------|
+|pygame   |>= 2.0.0 |
+|moviepy  |>= 1.0.0 |
+|pyaudio  |>= 0.2.11|
+
+## Other requirements:
+
+- ffmpeg.exe.
 
 # **Example:**
 
@@ -19,12 +27,17 @@
     import simple_pygame
     simple_pygame.init()
 
-    if __name__ == "__main__":
-        music = simple_pygame.mixer.Music("Music.mp3")
-        music.play()
+    music = simple_pygame.mixer.Music("Music.mp3")
+    music.play()
 
-        while music.get_busy():
-            pass
+    while music.get_busy():
+        pass
+    
+    exception = music.get_exception()
+
+    if exception:
+        raise exception
+
 
 ### **Note**: You can play any file contains audio that supported by ffmpeg.
 
