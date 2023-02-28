@@ -1,17 +1,17 @@
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 
-import simple_pygame, pygame, moviepy.editor, time
+import simple_pygame, pygame.mixer, moviepy.audio.io.AudioFileClip as AudioFileClip, time
 
 class Sound:
     def __init__(self, path: str, channel: int = 0, initialize: bool = True) -> None:
         """
-        A sound read from a file contains audio. This class will load the entire file.
+        A sound from a file contains audio. This class will load the entire file.
 
         Warning
         -------
 
-        This class is deprecated because of its low speed when loading large files and sometimes inaccuracy. You can use `simple_pygame.mixer.music.Music()` instead.
+        This class is deprecated because of its low speed when loading large files and sometimes inaccuracy. You can use `simple_pygame.mixer.Music()` instead.
 
         Requirements
         ------------
@@ -34,16 +34,21 @@ class Sound:
         self.is_pausing = False
         self.initialize = initialize
 
-        self.channel = pygame.mixer.Channel(channel)
+        self.__audio = AudioFileClip.AudioFileClip(path, nbytes = self.__bit_depth)
+        
+        if not pygame.mixer.get_init():
+            if initialize:
+                pygame.mixer.pre_init(self.__audio.fps, -16, self.__audio.nchannels, 1024)
 
-        self.__audio = moviepy.editor.AudioFileClip(path, nbytes = self.__bit_depth)
-        self.__sound = self.make_sound(self.__audio, self.__audio.fps, self.__bit_depth)
-
-        if initialize:
+            pygame.mixer.init()
+        elif initialize:
             pygame.mixer.quit()
             pygame.mixer.init(self.__audio.fps, -16, self.__audio.nchannels, 1024)
 
-    def make_sound(self, audio: moviepy.editor.AudioFileClip, sample_rate: int = None, bit_depth: int = 2) -> pygame.mixer.Sound:
+        self.__sound = self.make_sound(self.__audio, self.__audio.fps, self.__bit_depth)
+        self.channel = pygame.mixer.Channel(channel)
+
+    def make_sound(self, audio: AudioFileClip.AudioFileClip, sample_rate: int = None, bit_depth: int = 2) -> pygame.mixer.Sound:
         """
         Return the sound transformed from the audio. This function is meant for use by the `Class` and not for general use.
 
@@ -91,7 +96,7 @@ class Sound:
     
     def pause(self) -> None:
         """
-        Pause the sound if it's current playing and not paused. It can be resumed with `unpause()` function.
+        Pause the sound if it's current playing and not paused. It can be resumed with `resume()` function.
         """
         if self.get_busy() and not self.is_pausing:
             self.channel.pause()
@@ -99,7 +104,7 @@ class Sound:
 
             self.is_pausing = True
     
-    def unpause(self) -> None:
+    def resume(self) -> None:
         """
         Resume the sound after it has been paused.
         """
