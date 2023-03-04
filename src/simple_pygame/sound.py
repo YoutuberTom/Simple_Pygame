@@ -2,6 +2,7 @@ import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 
 import simple_pygame, pygame.mixer, moviepy.audio.io.AudioFileClip as AudioFileClip, time
+from typing import Optional, Union
 
 class Sound:
     def __init__(self, path: str, channel: int = 0, initialize: bool = True) -> None:
@@ -27,7 +28,7 @@ class Sound:
 
         channel (optional): Channel id for playing the sound. The id must be a value from 0 to the value of `pygame.mixer.get_num_channels()`.
 
-        initialize (optional): initialize the mixer module with some adjustments.
+        initialize (optional): Initialize the mixer module with some adjustments.
         """
         self.path = path
         self.__bit_depth = 2
@@ -48,7 +49,7 @@ class Sound:
         self.__sound = self.make_sound(self.__audio, self.__audio.fps, self.__bit_depth)
         self.channel = pygame.mixer.Channel(channel)
 
-    def make_sound(self, audio: AudioFileClip.AudioFileClip, sample_rate: int = None, bit_depth: int = 2) -> pygame.mixer.Sound:
+    def make_sound(self, audio: AudioFileClip.AudioFileClip, sample_rate: Optional[int] = None, bit_depth: int = 2) -> pygame.mixer.Sound:
         """
         Return the sound transformed from the audio. This function is meant for use by the `Class` and not for general use.
 
@@ -65,7 +66,7 @@ class Sound:
         array = audio.to_soundarray(fps = sample_rate, nbytes = bit_depth, quantize = True)
         return pygame.sndarray.make_sound(array)
     
-    def play(self, position: float = 0.0) -> None:
+    def play(self, position: Union[int, float] = 0) -> None:
         """
         Play the sound. If any sound is current playing it will be restarted.
 
@@ -151,7 +152,7 @@ class Sound:
         else:
             return simple_pygame.SoundEnded
     
-    def set_volume(self, volume: float) -> None:
+    def set_volume(self, volume: Union[int, float]) -> None:
         """
         Set the current channel volume.
 
@@ -192,7 +193,7 @@ class Sound:
         """
         return round(self.__sound.get_length(), digit)
 
-    def nanoseconds_to_seconds(self, time: float, digit: int = 4) -> float:
+    def nanoseconds_to_seconds(self, time: Union[int, float], digit: int = 4) -> float:
         """
         Convert nanoseconds to seconds. It's meant for use by the `Class` and not for general use.
 
