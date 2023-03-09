@@ -74,7 +74,7 @@ class Music:
 
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, format: Optional[int] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> subprocess.Popen:
         """
-        Return the pipe contains ffmpeg output and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
+        Return a pipe contains ffmpeg output, a dict contains the file information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -93,31 +93,31 @@ class Music:
 
         loglevel (optional): Logging level and flags used by ffmpeg.exe.
         """
-        streams = self.get_information(path, ffprobe_path, loglevel)["streams"]
+        infomation = self.get_information(path, ffprobe_path, loglevel)
+        streams = infomation["streams"]
 
-        for order, data in enumerate(streams):
-            if data["codec_type"] != "audio":
-                del streams[order]
+        audio_streams = []
+        for data in streams:
+            if data["codec_type"] == "audio":
+                audio_streams.append(data)
         
-        streams_len = len(streams)
-        
-        if streams_len == 0:
+        if len(audio_streams) == 0:
             raise ValueError("The file doesn't contain audio.")
         else:
             stream = int(stream)
 
             if stream < 0:
                 stream = 0
-            elif stream >= streams_len:
+            elif stream >= len(audio_streams):
                 stream = 0
         
         if not format:
             format = self.ffmpegFormat
 
-        ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}?", "-f", format, "pipe:1"]
+        ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", format, "pipe:1"]
 
         try:
-            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = subprocess.CREATE_NO_WINDOW), streams[stream]
+            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = subprocess.CREATE_NO_WINDOW), infomation, audio_streams[stream]
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
     
@@ -249,7 +249,7 @@ class Music:
         else:
             self.play(start = position)
     
-    def get_position(self) -> Union[int, float]:
+    def get_position(self) -> Union[float, simple_pygame.MusicIsLoading, simple_pygame.MusicEnded]:
         """
         Return the current music position in seconds if it's current playing or pausing, `simple_pygame.MusicIsLoading` if the music stream is loading, otherwise `simple_pygame.MusicEnded`.
         """
@@ -344,7 +344,11 @@ class Music:
 
             position: The music stream position in seconds.
             """
-            duration = float(info["duration"])
+            try:
+                duration = float(stream_info["duration"])
+            except KeyError:
+                duration = float(info["format"]["duration"])
+
             if position >= duration:
                 return self.seconds_to_nanoseconds(duration)
             else:
@@ -356,15 +360,15 @@ class Music:
             aoFormat = self.aoFormat
             position = self.__position
 
-            pipe, info = self.create_pipe(path, position, stream, format = ffmpegFormat)
-            stream_out = self.__pa.open(int(info["sample_rate"]), info["channels"], paFormat, output = True, frames_per_buffer = chunk)
+            pipe, info, stream_info = self.create_pipe(path, position, stream, format = ffmpegFormat)
+            stream_out = self.__pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, frames_per_buffer = chunk)
 
             offset = calculate_offset(position)
             self.__start = time.time_ns() - offset
             while not self.__terminate:
                 if self.__reposition:
                     position = self.__position
-                    pipe, info = self.create_pipe(path, position, stream, format = ffmpegFormat)
+                    pipe, info, stream_info = self.create_pipe(path, position, stream, format = ffmpegFormat)
                     self.__reposition = False
 
                     offset = calculate_offset(position)
@@ -387,14 +391,14 @@ class Music:
                         self.__pause_time = 0
 
                         if loop == -1:
-                            pipe, info = self.create_pipe(path, 0, stream, format = ffmpegFormat)
+                            pipe, info, stream_info = self.create_pipe(path, 0, stream, format = ffmpegFormat)
                             self.__start = time.time_ns()
                         elif loop == 0:
                             break
                         else:
                             loop -= 1
 
-                            pipe, info = self.create_pipe(path, 0, stream, format = ffmpegFormat)
+                            pipe, info, stream_info = self.create_pipe(path, 0, stream, format = ffmpegFormat)
                             self.__start = time.time_ns()
                 elif not self.__start_pause:
                     self.__start_pause = time.time_ns()
