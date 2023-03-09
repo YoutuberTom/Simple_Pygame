@@ -2,7 +2,7 @@ import simple_pygame, pyaudio, audioop, subprocess, threading, json, time
 from typing import Optional, Union
 
 class Music:
-    def __init__(self, path: str, stream: int = 0, chunk: int = 8192, exception_on_underflow: bool = False) -> None:
+    def __init__(self, path: str, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         A music stream from a file contains audio. This class won't load the entire file.
 
@@ -22,12 +22,15 @@ class Music:
 
         chunk (optional): Number of bytes per chunk when playing music.
 
-        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
+        ffmpeg_path (optional): Path to ffmpeg.exe.
+
+        ffprobe_path (optional): Path to ffprobe.exe.
         """
         self.path = path
         self.stream = stream
         self.chunk = chunk
-        self.exception_on_underflow = exception_on_underflow
+        self.ffmpeg_path = ffmpeg_path
+        self.ffprobe_path = ffprobe_path
         self.currently_pause = None
         self.exception = None
         self.__music_thread = None
@@ -51,7 +54,7 @@ class Music:
 
         path: Path to the file to get information.
 
-        ffprobe (optional): Path to ffprobe.exe.
+        ffprobe_path (optional): Path to ffprobe.exe.
 
         loglevel (optional): Logging level and flags used by ffprobe.exe.
         """
@@ -69,7 +72,7 @@ class Music:
         except subprocess.CalledProcessError:
             raise ValueError("Invalid loglevel or path.") from None
 
-    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", format: Optional[int] = None, loglevel: str = "quiet") -> subprocess.Popen:
+    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, format: Optional[int] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> subprocess.Popen:
         """
         Return the pipe contains ffmpeg output and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
 
@@ -82,11 +85,11 @@ class Music:
 
         stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
 
-        ffmpeg (optional): Path to ffmpeg.exe.
-
-        ffprobe (optional): Path to ffprobe.exe.
-
         format (optional): Data output format. Use format from the `set_format()` function if `None`.
+
+        ffmpeg_path (optional): Path to ffmpeg.exe.
+
+        ffprobe_path (optional): Path to ffprobe.exe.
 
         loglevel (optional): Logging level and flags used by ffmpeg.exe.
         """
@@ -114,11 +117,11 @@ class Music:
         ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}?", "-f", format, "pipe:1"]
 
         try:
-            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE), streams[stream]
+            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = subprocess.CREATE_NO_WINDOW), streams[stream]
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
     
-    def change_path(self, path: str, stream: int = 0, chunk: int = 8192) -> None:
+    def change_path(self, path: str, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         Change the current path if you want to play a different file.
 
@@ -130,10 +133,16 @@ class Music:
         stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing music.
+
+        ffmpeg_path (optional): Path to ffmpeg.exe.
+
+        ffprobe_path (optional): Path to ffprobe.exe.
         """
         self.path = path
         self.stream = stream
         self.chunk = chunk
+        self.ffmpeg_path = ffmpeg_path
+        self.ffprobe_path = ffprobe_path
 
     def set_format(self, format: int = simple_pygame.SInt16) -> None:
         """
@@ -159,7 +168,7 @@ class Music:
         else:
             raise ValueError("Invalid format.")
     
-    def play(self, loop: int = 0, start: Union[int, float] = 0) -> None:
+    def play(self, loop: int = 0, start: Union[int, float] = 0, exception_on_underflow: bool = False) -> None:
         """
         Start the music stream. If music stream is current playing it will be restarted.
 
@@ -169,6 +178,8 @@ class Music:
         loop (optional): How many times to repeat the music. If this argument is set to `-1` repeats indefinitely.
 
         start (optional): Where the music stream starts playing in seconds.
+
+        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
         """
         self.stop()
         
@@ -190,7 +201,7 @@ class Music:
         else:
             self.__position = start
 
-        self.__music_thread = threading.Thread(target = self.music, args = (self.path, loop, self.stream, self.chunk, self.exception_on_underflow))
+        self.__music_thread = threading.Thread(target = self.music, args = (self.path, loop, self.stream, self.chunk, exception_on_underflow))
         self.__music_thread.daemon = True
         self.__music_thread.start()
 
