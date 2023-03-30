@@ -2,7 +2,7 @@ import simple_pygame, pyaudio, audioop, subprocess, threading, json, time
 from typing import Optional, Union
 
 class Music:
-    def __init__(self, path: str, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         A music stream from a file contains audio. This class won't load the entire file.
 
@@ -13,18 +13,20 @@ class Music:
 
         - FFmpeg.
 
+        - FFprobe (optional).
+
         Parameters
         ----------
 
-        path: Path to the file contains audio.
+        path (optional): Path to the file contains audio.
 
         stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing music.
 
-        ffmpeg_path (optional): Path to ffmpeg.exe.
+        ffmpeg_path (optional): Path to ffmpeg.
 
-        ffprobe_path (optional): Path to ffprobe.exe.
+        ffprobe_path (optional): Path to ffprobe.
         """
         self.path = path
         self.stream = stream
@@ -33,6 +35,7 @@ class Music:
         self.ffprobe_path = ffprobe_path
         self.currently_pause = None
         self.exception = None
+        self.__output_device_index = None
         self.__music_thread = None
         self.__start = None
         self.__reposition = False
@@ -45,34 +48,190 @@ class Music:
         self.__pa = pyaudio.PyAudio()
         self.set_format()
         
-    def get_information(self, path: str, ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> Optional[dict]:
+    def get_information(self, path: str, use_ffmpeg: bool = False, ffmpeg_or_ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> Optional[dict]:
         """
-        Return a dict contains all the file information. Return `None` if ffprobe cannot read the file.
+        Return a dict contains all the file information. Return `None` if cannot read the file.
 
         Parameters
         ----------
 
         path: Path to the file to get information.
 
-        ffprobe_path (optional): Path to ffprobe.exe.
+        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
 
-        loglevel (optional): Logging level and flags used by ffprobe.exe.
+        ffmpeg_or_ffprobe_path (optional): Path to ffmpeg or ffprobe.
+
+        loglevel (optional): Logging level and flags used by ffprobe.
         """
-        ffprobe_command = [ffprobe_path, "-loglevel", loglevel, "-print_format", "json", "-show_format", "-show_streams", "-i", path]
+        if use_ffmpeg:
+            try:
+                raw_data = subprocess.check_output([ffmpeg_or_ffprobe_path, "-i", path], stderr = subprocess.STDOUT)
 
-        try:
-            data = subprocess.check_output(ffprobe_command)
-            
-            if not data:
-                return
+                return self.extract_information([data.strip() for data in raw_data.decode().replace("  ", " ").split("\r\n") if data != ""])
+            except FileNotFoundError:
+                raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
+            except subprocess.CalledProcessError as error:
+                raw_data = [data.strip() for data in error.stdout.decode().replace("  ", " ").split("\r\n") if data != ""]
 
-            return json.loads(data.replace(b"\r\n", b""))
-        except FileNotFoundError:
-            raise FileNotFoundError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
-        except subprocess.CalledProcessError:
-            raise ValueError("Invalid loglevel or path.") from None
+                if "No such file or directory" in raw_data[-1]:
+                    raise ValueError("Invalid file path.") from None
+                elif "Invalid data found when processing input" in raw_data[-1]:
+                    raise ValueError("Invalid file data found.") from None
 
-    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, format: Optional[int] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> subprocess.Popen:
+                return self.extract_information(raw_data)
+        else:
+            ffprobe_command = [ffmpeg_or_ffprobe_path, "-loglevel", loglevel, "-print_format", "json", "-show_format", "-show_streams", "-i", path]
+
+            try:
+                data = subprocess.check_output(ffprobe_command, stderr = subprocess.STDOUT)
+
+                if data:
+                    return json.loads(data.split(b"ffprobe")[0])
+            except FileNotFoundError:
+                raise FileNotFoundError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
+            except subprocess.CalledProcessError as error:
+                if b"Invalid loglevel" in error.stdout:
+                    raise ValueError("Invalid loglevel.") from None
+                else:
+                    raise ValueError("Invalid ffprobe path or file path or file data.") from None
+    
+    def extract_information(self, raw_data: list) -> dict:
+        """
+        Return a dict contains the processed information of the file. This function is meant for use by the `Class` and not for general use.
+
+        Parameters
+        ----------
+
+        raw_data: A list contains raw information of the file from ffmpeg.
+        """
+        data = {}
+        data["format"] = {}
+        data["streams"] = []
+
+        stream_index = 0
+        for information in raw_data:
+            if "Input" in information:
+                data["format"]["tags"] = {}
+                data["format"]["format_name"] = ""
+
+                for small_information in information.split(",")[1:]:
+                    if "from" in small_information:
+                        data["format"]["filename"] = small_information[small_information.index("'") + 1: small_information.rindex("'")]
+                    else:
+                        data["format"]["format_name"] += small_information.strip() + ","
+                
+                data["format"]["format_name"] = data["format"]["format_name"][:-1]
+            elif "major_brand" in information:
+                data["format"]["tags"]["major_brand"] = information.split(":")[-1].strip()
+            elif "minor_version" in information:
+                data["format"]["tags"]["minor_version"] = information.split(":")[-1].strip()
+            elif "compatible_brands" in information:
+                data["format"]["tags"]["compatible_brands"] = information.split(":")[-1].strip()
+            elif "encoder" in information:
+                data["format"]["tags"]["encoder"] = information.split(":")[-1].strip()
+            elif "encoded_by" in information:
+                data["format"]["tags"]["encoded_by"] = information.split(":")[-1].strip()
+            elif "Duration" in information or "start" in information or "bitrate" in information:
+                for small_information in information.split(","):
+                    if "Duration" in small_information:
+                        time = small_information[small_information.index(":") + 1:].strip().split(":")
+                        data["format"]["duration"] = float(time[0]) * 3600 + float(time[1]) * 60 + float(time[2])
+                    elif "start" in small_information:
+                        data["format"]["start_time"] = small_information.split(":")[-1].strip()
+                    elif "bitrate" in small_information:
+                        if "N/A" not in small_information and "Estimating duration from bitrate" not in small_information:
+                            data["format"]["bit_rate"] = int(small_information.split()[-2]) * 1000
+            elif "handler_name" in information:
+                data["streams"][stream_index - 1]["tags"]["handler_name"] = information.split(":")[-1].strip()
+            elif "HANDLER_NAME" in information:
+                data["format"]["tags"]["HANDLER_NAME"] = information.split(":")[-1].strip()
+            elif "title" in information:
+                if stream_index == 0:
+                    data["format"]["tags"]["title"] = information.split(":")[-1].strip()
+                else:
+                    data["streams"][stream_index - 1]["tags"]["title"] = information.split(":")[-1].strip()
+            elif "album" in information:
+                data["format"]["tags"]["album"] = information.split(":")[-1].strip()
+            elif "TBPM" in information:
+                data["format"]["tags"]["TBPM"] = int(information.split(":")[-1].strip())
+            elif "genre" in information:
+                data["format"]["tags"]["genre"] = information.split(":")[-1].strip()
+            elif "TSRC" in information:
+                data["format"]["tags"]["TSRC"] = information.split(":")[-1].strip()
+            elif "track" in information:
+                data["format"]["tags"]["track"] = int(information.split(":")[-1].strip())
+            elif "artist" in information:
+                data["format"]["tags"]["artist"] = information.split(":")[-1].strip()
+            elif "comment" in information:
+                if stream_index == 0:
+                    data["format"]["tags"]["comment"] = information.split(":")[-1].strip()
+                else:
+                    data["streams"][stream_index - 1]["tags"]["comment"] = information.split(":")[-1].strip()
+            elif "COMMENT" in information:
+                data["streams"][stream_index - 1]["tags"]["COMMENT"] = information.split(":")[-1].strip()
+            elif "Stream" in information:
+                data["streams"].append({"index": stream_index})
+                data["streams"][stream_index]["tags"] = {}
+
+                for order, small_information in enumerate(information.split(",")):
+                    if "Stream" in small_information:
+                        small_information = small_information.split(":")
+                        data["streams"][stream_index]["codec_type"] = small_information[-2].strip().lower()
+
+                        small_information = small_information[-1].strip().split()
+                        data["streams"][stream_index]["codec_name"] = small_information[0]
+
+                        if len(small_information) == 5:
+                            data["streams"][stream_index]["profile"] = small_information[1][1:-1]
+
+                            if "/" == small_information[3]:
+                                data["streams"][stream_index]["codec_tag_string"] = small_information[2][1:]
+                                data["streams"][stream_index]["codec_tag"] = small_information[4][:-1]
+                        if len(small_information) == 4:
+                            if "/" == small_information[2]:
+                                data["streams"][stream_index]["codec_tag_string"] = small_information[1][1:]
+                                data["streams"][stream_index]["codec_tag"] = small_information[3][:-1]
+                    elif order == 1 and data["streams"][stream_index]["codec_type"] == "video":
+                        data["streams"][stream_index]["pix_fmt"] = small_information.strip()
+                    elif "SAR" in small_information and "DAR" in small_information:
+                        size = small_information[:small_information.index("[")].strip().split("x")
+                        data["streams"][stream_index]["width"] = int(size[0])
+                        data["streams"][stream_index]["height"] = int(size[1])
+
+                        small_information = small_information[small_information.index("[") + 1:small_information.rindex("]")].split()
+                        data["streams"][stream_index]["sample_aspect_ratio"] = small_information[small_information.index("SAR") + 1]
+                        data["streams"][stream_index]["display_aspect_ratio"] = small_information[small_information.index("DAR") + 1]
+                    elif "kb/s" in small_information:
+                        data["streams"][stream_index]["bit_rate"] = int(small_information[:small_information.rindex("kb/s")].strip()) * 1000
+                    elif "fps" in small_information:
+                        data["streams"][stream_index]["avg_frame_rate"] = float(small_information[:small_information.rindex("fps")].strip())
+                    elif "tbn" in small_information:
+                        time_base = small_information[:small_information.rindex("tbn")].strip()
+                        if "k" in time_base:
+                            data["streams"][stream_index]["time_base"] = "1/" + str(int(time_base[:-1]) * 1000)
+                        else:
+                            data["streams"][stream_index]["time_base"] = "1/" + time_base
+                    elif "Hz" in small_information:
+                        data["streams"][stream_index]["sample_rate"] = int(small_information[:small_information.rindex("Hz")].strip())
+                    elif "mono" in small_information:
+                        data["streams"][stream_index]["channels"] = 1
+                    elif "stereo" in small_information:
+                        data["streams"][stream_index]["channels"] = 2
+                    elif order == 3 and data["streams"][stream_index]["codec_type"] == "audio":
+                        data["streams"][stream_index]["sample_fmt"] = small_information.strip()
+
+                stream_index += 1
+
+        if len(data["format"]["tags"]) == 0:
+            del data["format"]["tags"]
+
+        for index in range(stream_index):
+            if len(data["streams"][index]["tags"]) == 0:
+                del data["streams"][index]["tags"]
+        
+        return data
+
+    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> list:
         """
         Return a pipe contains ffmpeg output, a dict contains the file information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
 
@@ -87,14 +246,19 @@ class Music:
 
         format (optional): Data output format. Use format from the `set_format()` function if `None`.
 
-        ffmpeg_path (optional): Path to ffmpeg.exe.
+        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
 
-        ffprobe_path (optional): Path to ffprobe.exe.
+        ffmpeg_path (optional): Path to ffmpeg.
 
-        loglevel (optional): Logging level and flags used by ffmpeg.exe.
+        ffprobe_path (optional): Path to ffprobe.
+
+        loglevel (optional): Logging level and flags used by ffmpeg and ffprobe.
         """
-        infomation = self.get_information(path, ffprobe_path, loglevel)
-        streams = infomation["streams"]
+        if use_ffmpeg:
+            information = self.get_information(path, use_ffmpeg, ffmpeg_path, loglevel)
+        else:
+            information = self.get_information(path, use_ffmpeg, ffprobe_path, loglevel)
+        streams = information["streams"]
 
         audio_streams = []
         for data in streams:
@@ -111,32 +275,32 @@ class Music:
             elif stream >= len(audio_streams):
                 stream = 0
         
-        if not format:
+        if format == None:
             format = self.ffmpegFormat
 
         ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", format, "pipe:1"]
 
         try:
-            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = subprocess.CREATE_NO_WINDOW), infomation, audio_streams[stream]
+            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = subprocess.CREATE_NO_WINDOW), information, audio_streams[stream]
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
     
-    def change_path(self, path: str, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
-        Change the current path if you want to play a different file.
+        An easier way to change some attributes.
 
         Parameters
         ----------
 
-        path: Path to the file contains audio.
+        path (optional): Path to the file contains audio.
 
         stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing music.
 
-        ffmpeg_path (optional): Path to ffmpeg.exe.
+        ffmpeg_path (optional): Path to ffmpeg.
 
-        ffprobe_path (optional): Path to ffprobe.exe.
+        ffprobe_path (optional): Path to ffprobe.
         """
         self.path = path
         self.stream = stream
@@ -144,7 +308,7 @@ class Music:
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
-    def set_format(self, format: int = simple_pygame.SInt16) -> None:
+    def set_format(self, format: any = simple_pygame.SInt16) -> None:
         """
         Set the music stream output format. Default is `simple_pygame.SInt16`.
 
@@ -168,7 +332,49 @@ class Music:
         else:
             raise ValueError("Invalid format.")
     
-    def play(self, loop: int = 0, start: Union[int, float] = 0, exception_on_underflow: bool = False) -> None:
+    def get_device_count(self) -> int:
+        """
+        Return the number of PortAudio Host APIs.
+        """
+        return self.__pa.get_device_count()
+    
+    def set_output_device_by_index(self, device_index: int) -> None:
+        """
+        Set the output device by index.
+
+        Parameters
+        ----------
+
+        device_index: The device's index.
+        """
+        if type(device_index) != int:
+            raise ValueError("The device's index must be an integer.")
+        
+        if device_index < 0 or device_index > self.get_device_count() - 1:
+            raise ValueError("Invalid index.")
+        
+        self.__output_device_index = device_index
+    
+    def get_device_info(self, device_index: Optional[int] = None) -> dict:
+        """
+        Return the device info.
+
+        Parameters
+        ----------
+
+        device_index: The device's index. Return the default output device info if `None`.
+        """
+        if device_index != None:
+            if type(device_index) != int:
+                raise ValueError("The device's index must be an integer.")
+            
+            if device_index < 0 or device_index > self.get_device_count() - 1:
+                raise ValueError("Invalid index.")
+        
+            return self.__pa.get_device_info_by_index(device_index)
+        return self.__pa.get_default_output_device_info()
+    
+    def play(self, loop: int = 0, start: Union[int, float] = 0, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
         Start the music stream. If music stream is current playing it will be restarted.
 
@@ -179,11 +385,16 @@ class Music:
 
         start (optional): Where the music stream starts playing in seconds.
 
-        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
+        exception_on_underflow (optional): Specify whether an exception should be thrown (or silently ignored) on buffer underflow. Default to `False` for improved performance, especially on slower platforms.
+
+        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
         """
         self.stop()
+
+        if self.path == None:
+            raise ValueError("Please specify the file path before starting the music stream.")
         
-        if loop.__class__ != int:
+        if type(loop) != int:
             raise TypeError("Loop must be an integer.")
         elif loop < -1:
             return
@@ -201,7 +412,7 @@ class Music:
         else:
             self.__position = start
 
-        self.__music_thread = threading.Thread(target = self.music, args = (self.path, loop, self.stream, self.chunk, exception_on_underflow))
+        self.__music_thread = threading.Thread(target = self.music, args = (self.path, loop, self.stream, self.chunk, exception_on_underflow, use_ffmpeg))
         self.__music_thread.daemon = True
         self.__music_thread.start()
 
@@ -231,6 +442,25 @@ class Music:
         
         self.__music_thread = None
     
+    def join(self, raise_exception: bool = True) -> None:
+        """
+        Wait until the music stream stops.
+
+        Parameters
+        ----------
+
+        raise_exception (optional): Specify whether an exception should be thrown (or silently ignored).
+        """
+        if self.get_busy():
+            while self.get_busy():
+                pass
+
+            if raise_exception:
+                exception = self.get_exception()
+
+                if exception:
+                    raise exception
+    
     def set_position(self, position: Union[int, float]) -> None:
         """
         Set the current music position where the music will continue to play.
@@ -249,7 +479,7 @@ class Music:
         else:
             self.play(start = position)
     
-    def get_position(self) -> Union[float, simple_pygame.MusicIsLoading, simple_pygame.MusicEnded]:
+    def get_position(self) -> any:
         """
         Return the current music position in seconds if it's current playing or pausing, `simple_pygame.MusicIsLoading` if the music stream is loading, otherwise `simple_pygame.MusicEnded`.
         """
@@ -302,7 +532,7 @@ class Music:
         """
         return self.exception
 
-    def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 8192, exception_on_underflow: bool = False) -> None:
+    def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 8192, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
         Start the music stream. This function is meant for use by the `Class` and not for general use.
 
@@ -317,7 +547,9 @@ class Music:
 
         chunk (optional): Number of bytes per chunk when playing music.
 
-        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
+        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Default to `False` for improved performance, especially on slower platforms.
+
+        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
         """
         def clean_up() -> None:
             """
@@ -360,15 +592,15 @@ class Music:
             aoFormat = self.aoFormat
             position = self.__position
 
-            pipe, info, stream_info = self.create_pipe(path, position, stream, format = ffmpegFormat)
-            stream_out = self.__pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, frames_per_buffer = chunk)
+            pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg)
+            stream_out = self.__pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, output_device_index = self.__output_device_index, frames_per_buffer = chunk)
 
             offset = calculate_offset(position)
             self.__start = time.time_ns() - offset
             while not self.__terminate:
                 if self.__reposition:
                     position = self.__position
-                    pipe, info, stream_info = self.create_pipe(path, position, stream, format = ffmpegFormat)
+                    pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg)
                     self.__reposition = False
 
                     offset = calculate_offset(position)
@@ -391,14 +623,14 @@ class Music:
                         self.__pause_time = 0
 
                         if loop == -1:
-                            pipe, info, stream_info = self.create_pipe(path, 0, stream, format = ffmpegFormat)
+                            pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg)
                             self.__start = time.time_ns()
                         elif loop == 0:
                             break
                         else:
                             loop -= 1
 
-                            pipe, info, stream_info = self.create_pipe(path, 0, stream, format = ffmpegFormat)
+                            pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg)
                             self.__start = time.time_ns()
                 elif not self.__start_pause:
                     self.__start_pause = time.time_ns()
