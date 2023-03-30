@@ -140,7 +140,7 @@ class Sound:
         if is_pausing:
             self.pause()
     
-    def get_position(self) -> float:
+    def get_position(self) -> any:
         """
         Return the current sound position in seconds if it's current playing or pausing, otherwise `simple_pygame.SoundEnded`.
         """
