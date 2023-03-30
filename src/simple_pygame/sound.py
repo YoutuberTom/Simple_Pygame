@@ -32,8 +32,7 @@ class Sound:
         """
         self.path = path
         self.__bit_depth = 2
-        self.is_pausing = False
-        self.initialize = initialize
+        self.currently_pause = False
 
         self.__audio = AudioFileClip.AudioFileClip(path, nbytes = self.__bit_depth)
         
@@ -47,7 +46,7 @@ class Sound:
             pygame.mixer.init(self.__audio.fps, -16, self.__audio.nchannels, 1024)
 
         self.__sound = self.make_sound(self.__audio, self.__audio.fps, self.__bit_depth)
-        self.channel = pygame.mixer.Channel(channel)
+        self.__channel = pygame.mixer.Channel(channel)
 
     def make_sound(self, audio: AudioFileClip.AudioFileClip, sample_rate: Optional[int] = None, bit_depth: int = 2) -> pygame.mixer.Sound:
         """
@@ -75,8 +74,8 @@ class Sound:
 
         position (optional): Where to set the sound position in seconds.
         """
-        if self.is_pausing:
-            self.unpause()
+        if self.currently_pause:
+            self.resume()
         self.stop()
 
         if position >= self.get_length():
@@ -84,45 +83,45 @@ class Sound:
         else:
             if position <= 0:
                 sound = self.__sound
-                self.offset = 0
+                self.__offset = 0
             else:
                 sound = self.make_sound(self.__audio.cutout(0, position), self.__audio.fps, self.__bit_depth)
-                self.offset = position * 1000000000
-            self.channel.play(sound)
-            self.start = time.time_ns()
+                self.__offset = position * 1000000000
+            self.__channel.play(sound)
+            self.__start = time.time_ns()
 
-            self.pause_time = 0
-            self.start_pause = False
-            self.is_pausing = False
+            self.__pause_time = 0
+            self.__start_pause = False
+            self.currently_pause = False
     
     def pause(self) -> None:
         """
         Pause the sound if it's current playing and not paused. It can be resumed with `resume()` function.
         """
-        if self.get_busy() and not self.is_pausing:
-            self.channel.pause()
-            self.start_pause = time.time_ns()
+        if self.get_busy() and not self.currently_pause:
+            self.__channel.pause()
+            self.__start_pause = time.time_ns()
 
-            self.is_pausing = True
+            self.currently_pause = True
     
     def resume(self) -> None:
         """
         Resume the sound after it has been paused.
         """
-        if self.get_busy() and self.is_pausing:
-            self.channel.unpause()
+        if self.get_busy() and self.currently_pause:
+            self.__channel.unpause()
 
-            self.pause_time += time.time_ns() - self.start_pause
-            self.start_pause = False
-            self.is_pausing = False
+            self.__pause_time += time.time_ns() - self.__start_pause
+            self.__start_pause = False
+            self.currently_pause = False
     
     def stop(self) -> None:
         """
         Stop the sound if it's current playing.
         """
-        self.channel.stop()
+        self.__channel.stop()
 
-        self.is_pausing = False
+        self.currently_pause = False
     
     def set_position(self, position: float) -> None:
         """
@@ -133,7 +132,7 @@ class Sound:
 
         position: Where to set the sound position in seconds.
         """
-        is_pausing = self.is_pausing
+        is_pausing = self.currently_pause
 
         self.play(position)
 
@@ -145,10 +144,10 @@ class Sound:
         Return the current sound position in seconds if it's current playing or pausing, otherwise `simple_pygame.SoundEnded`.
         """
         if self.get_busy():
-            if self.start_pause:
-                return self.nanoseconds_to_seconds(self.pause_time + self.offset + self.start_pause - self.start)
+            if self.__start_pause:
+                return self.nanoseconds_to_seconds(self.__pause_time + self.__offset + self.__start_pause - self.__start)
             else:
-                return self.nanoseconds_to_seconds(time.time_ns() - self.start - self.pause_time + self.offset)
+                return self.nanoseconds_to_seconds(time.time_ns() - self.__start - self.__pause_time + self.__offset)
         else:
             return simple_pygame.SoundEnded
     
@@ -162,19 +161,19 @@ class Sound:
         volume: Channel volume.
         """
         if volume >= 0 and volume <= 1:
-            self.channel.set_volume(volume)
+            self.__channel.set_volume(volume)
 
     def get_volume(self) -> float:
         """
         Return the current channel volume.
         """
-        return self.channel.get_volume()
+        return self.__channel.get_volume()
     
     def get_busy(self) -> bool:
         """
         Return `True` if the channel is current playing or pausing, otherwise `False`.
         """
-        return self.channel.get_busy()
+        return self.__channel.get_busy()
     
     def get_sound(self) -> pygame.mixer.Sound:
         """
