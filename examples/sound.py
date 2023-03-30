@@ -1,14 +1,23 @@
 """
 Play a file contains audio using the `Sound` class.
 """
-import simple_pygame, os
-simple_pygame.init()
+import simple_pygame, os, sys
+successfully_imported = simple_pygame.mixer.init()
 
-path = __file__[:-len(os.path.basename(__file__))]
-file_path = os.path.join(path, "data", "Sound.mp3")
+if simple_pygame.SoundClass not in successfully_imported:
+    raise SystemExit("Import failed.")
 
-sound = simple_pygame.mixer.Sound(file_path)
-sound.play()
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        path = sys.argv[0][:-len(os.path.basename(sys.argv[0]))]
+        file_path = os.path.join(path, "data", "Sound.mp3")
+    else:
+        file_path = sys.argv[1]
 
-while sound.get_busy():
-    pass
+    sound = simple_pygame.mixer.Sound(file_path)
+    sound.play()
+
+    while sound.get_busy():
+        pass
+
+    simple_pygame.mixer.quit()
