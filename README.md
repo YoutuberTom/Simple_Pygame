@@ -8,6 +8,10 @@ Simple Pygame is a [Python](https://www.python.org/) library that provides many 
 
 # **Dependencies:**
 
+## Python version:
+
+    Python >= 3.7.0
+
 ## Python libraries:
 
 | Library | Version |
