@@ -9,7 +9,7 @@ if simple_pygame.MusicClass not in successfully_imported:
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        path = sys.argv[0][:-len(os.path.basename(sys.argv[0]))]
+        path = os.path.dirname(sys.argv[0])
         file_path = os.path.join(path, "data", "Sound.mp3")
     else:
         file_path = sys.argv[1]
