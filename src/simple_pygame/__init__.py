@@ -17,23 +17,23 @@ MixerModule = "MixerModule"
 SoundClass = "SoundClass"
 MusicClass = "MusicClass"
 
-__init = False
+_init = False
 
 def get_init() -> bool:
     """
     Return `True` if Simple Pygame is currently initialized, otherwise `False`.
     """
-    return __init
+    return _init
 
 def init() -> tuple:
     """
     Initialize all imported Simple Pygame modules and return successfully initialized modules.
     """
-    global __init
+    global _init
 
     if get_init():
         return ()
-    __init = True
+    _init = True
     
     successfully_imported = []
 
@@ -42,7 +42,7 @@ def init() -> tuple:
         successfully_imported.append(MixerModule)
 
     if len(successfully_imported) == 0:
-        __init = False
+        _init = False
     
     return (*successfully_imported,)
 
@@ -50,11 +50,11 @@ def quit() -> tuple:
     """
     Uninitialize all imported Simple Pygame modules and return successfully uninitialized modules.
     """
-    global __init
+    global _init
 
     if not get_init():
         return ()
-    __init = False
+    _init = False
     
     import gc
 
