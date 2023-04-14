@@ -1,23 +1,23 @@
 """
 A module for playing sounds and music.
 """
-__init = False
+_init = False
 
 def get_init() -> bool:
     """
     Return `True` if the mixer module is currently initialized, otherwise `False`.
     """
-    return __init
+    return _init
 
 def init() -> tuple:
     """
     Initialize the mixer module and return successfully initialized classes.
     """
-    global __init
+    global _init
 
     if get_init():
         return ()
-    __init = True
+    _init = True
 
     import simple_pygame
     
@@ -38,7 +38,7 @@ def init() -> tuple:
         pass
 
     if len(successfully_imported) == 0:
-        __init = False
+        _init = False
 
     return (*successfully_imported,)
 
@@ -46,11 +46,11 @@ def quit() -> tuple:
     """
     Uninitialize the mixer module and return successfully uninitialized classes.
     """
-    global __init
+    global _init
 
     if not get_init:
         return ()
-    __init = False
+    _init = False
 
     import simple_pygame, gc
 
