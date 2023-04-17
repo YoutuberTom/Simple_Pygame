@@ -566,6 +566,7 @@ class Music:
                 pass
 
             try:
+                stream_out.stop_stream()
                 stream_out.close()
             except NameError:
                 pass
