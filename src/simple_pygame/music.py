@@ -358,6 +358,9 @@ class Music:
         if device_index < 0 or device_index > self.get_device_count() - 1:
             raise ValueError("Invalid index.")
         
+        if self.get_device_info(device_index)["maxOutputChannels"] == 0:
+            raise ValueError("The device doesn't have any output channels.")
+        
         self._output_device_index = device_index
 
     def get_device_info(self, device_index: Optional[int] = None) -> dict:
@@ -460,11 +463,9 @@ class Music:
             while self.get_busy():
                 pass
 
-            if raise_exception:
-                exception = self.get_exception()
-
-                if exception:
-                    raise exception
+            exception = self.get_exception()
+            if exception and raise_exception:
+                raise exception
 
     def set_position(self, position: Union[int, float]) -> None:
         """
