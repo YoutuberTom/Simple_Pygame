@@ -33,7 +33,7 @@ class Music:
         self.chunk = chunk
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
-        self.currently_pause = None
+        self.currently_pause = False
         self.exception = None
         self._output_device_index = None
         self._music_thread = None
@@ -466,6 +466,14 @@ class Music:
             exception = self.get_exception()
             if exception and raise_exception:
                 raise exception
+    
+    def get_pause(self) -> bool:
+        """
+        Return `True` if currently pausing music stream, otherwise `False`.
+        """
+        if self.get_busy():
+            return self.currently_pause
+        return False
 
     def set_position(self, position: Union[int, float]) -> None:
         """
@@ -572,7 +580,7 @@ class Music:
             except NameError:
                 pass
 
-            self.currently_pause = None
+            self.currently_pause = False
 
         def calculate_offset(position: Union[int, float]) -> Union[int, float]:
             """
