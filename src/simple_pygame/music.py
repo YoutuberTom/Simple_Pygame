@@ -1,5 +1,5 @@
-import simple_pygame, pyaudio, audioop, subprocess, threading, json, time
-from typing import Optional, Union
+import simple_pygame, pyaudio, audioop, subprocess, threading, json, time, sys
+from typing import Optional, Union, Iterable
 
 class Music:
     def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
@@ -28,6 +28,21 @@ class Music:
 
         ffprobe_path (optional): Path to ffprobe.
         """
+        if path != None and type(path) != str:
+            raise TypeError("Path must be None or a string.")
+
+        if type(stream) != int:
+            raise TypeError("Stream must be an integer.")
+
+        if type(chunk) != int:
+            raise TypeError("Chunk must be an integer.")
+
+        if type(ffmpeg_path) != str:
+            raise TypeError("FFmpeg path must be a string.")
+
+        if type(ffprobe_path) != str:
+            raise TypeError("FFprobe path must be a string.")
+
         self.path = path
         self.stream = stream
         self.chunk = chunk
@@ -64,6 +79,15 @@ class Music:
 
         loglevel (optional): Logging level and flags used by ffprobe.
         """
+        if type(path) != str:
+            raise TypeError("Path must be a string.")
+
+        if type(ffmpeg_or_ffprobe_path) != str:
+            raise TypeError("FFmpeg/FFprobe path must be a string.")
+
+        if type(loglevel) != str:
+            raise TypeError("Loglevel must be a string.")
+
         if use_ffmpeg:
             try:
                 raw_data = subprocess.check_output([ffmpeg_or_ffprobe_path, "-i", path], stderr = subprocess.STDOUT)
@@ -74,9 +98,9 @@ class Music:
                 raw_data = [data.strip() for data in error.stdout.decode().replace("  ", " ").split("\r\n") if data != ""]
 
                 if "No such file or directory" in raw_data[-1]:
-                    raise ValueError("Invalid file path.") from None
+                    raise ValueError("Invalid path.") from None
                 elif "Invalid data found when processing input" in raw_data[-1]:
-                    raise ValueError("Invalid file data found.") from None
+                    raise ValueError("Invalid data found.") from None
 
             return self.extract_information(raw_data)
         else:
@@ -93,18 +117,23 @@ class Music:
                 if b"Invalid loglevel" in error.stdout:
                     raise ValueError("Invalid loglevel.") from None
                 else:
-                    raise ValueError("Invalid ffprobe path or file path or file data.") from None
+                    raise ValueError("Invalid ffprobe path or path or data.") from None
 
     @classmethod
-    def extract_information(self, raw_data: list[str]) -> dict:
+    def extract_information(self, raw_data: Iterable[str]) -> dict:
         """
         Return a dict contains the processed information of the file. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
 
-        raw_data: A list contains raw information of the file from ffmpeg.
+        raw_data: An iterable object contains raw information of the file from ffmpeg.
         """
+        try:
+            raw_data = iter(raw_data)
+        except TypeError:
+            raise TypeError("Raw data is not iterable.") from None
+
         data = {}
         data["format"] = {}
         data["streams"] = []
@@ -120,7 +149,7 @@ class Music:
                         data["format"]["filename"] = small_information[small_information.index("'") + 1: small_information.rindex("'")]
                     else:
                         data["format"]["format_name"] += small_information.strip() + ","
-                
+
                 data["format"]["format_name"] = data["format"]["format_name"][:-1]
             elif "major_brand" in information:
                 data["format"]["tags"]["major_brand"] = information.split(":")[-1].strip()
@@ -229,11 +258,11 @@ class Music:
         for index in range(stream_index):
             if len(data["streams"][index]["tags"]) == 0:
                 del data["streams"][index]["tags"]
-        
+
         return data
 
     @classmethod
-    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> list:
+    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, data_format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> list:
         """
         Return a pipe contains ffmpeg output, a dict contains the file information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
 
@@ -246,7 +275,7 @@ class Music:
 
         stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
 
-        format (optional): Data output format. Use format from the `set_format()` function if `None`.
+        data_format (optional): Output data format. Use format from the `set_format()` function if `None`.
 
         use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
 
@@ -256,6 +285,30 @@ class Music:
 
         loglevel (optional): Logging level and flags used by ffmpeg and ffprobe.
         """
+        if type(path) != str:
+            raise TypeError("Path must be a string.")
+
+        if type(position) != int and type(position) != float:
+            raise TypeError("Position must be an integer/a float.")
+
+        if type(stream) != int:
+            raise TypeError("Stream must be an integer.")
+
+        if data_format == None:
+            try:
+                data_format = self.ffmpegFormat
+            except AttributeError:
+                raise ValueError("Must specify the output data format.") from None
+
+        if type(ffmpeg_path) != str:
+            raise TypeError("FFmpeg path must be a string.")
+
+        if type(ffprobe_path) != str:
+            raise TypeError("FFprobe path must be a string.")
+
+        if type(loglevel) != str:
+            raise TypeError("Loglevel must be a string.")
+
         if use_ffmpeg:
             information = self.get_information(path, use_ffmpeg, ffmpeg_path, loglevel)
         else:
@@ -276,14 +329,8 @@ class Music:
                 stream = 0
             elif stream >= len(audio_streams):
                 stream = 0
-        
-        if format == None:
-            try:
-                format = self.ffmpegFormat
-            except AttributeError:
-                raise ValueError("Must specify the data output format.") from None
 
-        ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", format, "pipe:1"]
+        ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"]
 
         try:
             return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = subprocess.CREATE_NO_WINDOW), information, audio_streams[stream]
@@ -307,33 +354,52 @@ class Music:
 
         ffprobe_path (optional): Path to ffprobe.
         """
+        if path != None and type(path) != str:
+            raise TypeError("Path must be None or a string.")
+
+        if type(stream) != int:
+            raise TypeError("Stream must be an integer.")
+
+        if type(chunk) != int:
+            raise TypeError("Chunk must be an integer.")
+
+        if type(ffmpeg_path) != str:
+            raise TypeError("FFmpeg path must be a string.")
+
+        if type(ffprobe_path) != str:
+            raise TypeError("FFprobe path must be a string.")
+
         self.path = path
         self.stream = stream
         self.chunk = chunk
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
-    def set_format(self, format: any = simple_pygame.SInt16) -> None:
+    def set_format(self, data_format: any = simple_pygame.SInt16) -> None:
         """
-        Set the music stream output format. Default is `simple_pygame.SInt16`.
+        Set the output data format. Default is `simple_pygame.SInt16`.
 
         Parameters
         ----------
 
-        format: Specify what format to use.
+        data_format (optional): Specify what format to use.
         """
-        if format == simple_pygame.SInt8:
+        if data_format == simple_pygame.SInt8:
             self.paFormat = pyaudio.paInt8
             self.ffmpegFormat = "s8"
             self.aoFormat = 1
-        elif format == simple_pygame.SInt16:
+        elif data_format == simple_pygame.SInt16:
             self.paFormat = pyaudio.paInt16
-            self.ffmpegFormat = "s16le"
+            self.ffmpegFormat = "s16le" if sys.byteorder == "little" else "s16be"
             self.aoFormat = 2
-        elif format == simple_pygame.SInt32:
+        elif data_format == simple_pygame.SInt32:
             self.paFormat = pyaudio.paInt32
-            self.ffmpegFormat = "s32le"
+            self.ffmpegFormat = "s32le" if sys.byteorder == "little" else "s32be"
             self.aoFormat = 4
+        elif data_format == simple_pygame.UInt8:
+            self.paFormat = pyaudio.paUInt8
+            self.ffmpegFormat = "u8"
+            self.aoFormat = 1
         else:
             raise ValueError("Invalid format.")
 
@@ -343,24 +409,28 @@ class Music:
         """
         return self._pa.get_device_count()
 
-    def set_output_device_by_index(self, device_index: int) -> None:
+    def set_output_device_by_index(self, device_index: Optional[int] = None) -> None:
         """
         Set the output device by index.
 
         Parameters
         ----------
 
-        device_index: The device's index.
+        device_index: The device's index. Set the output device to default output device if `None`.
         """
+        if device_index == None:
+            self._output_device_index = self.get_device_info()["index"]
+            return
+
         if type(device_index) != int:
-            raise ValueError("The device's index must be an integer.")
-        
+            raise TypeError("The device's index must be an integer.")
+
         if device_index < 0 or device_index > self.get_device_count() - 1:
             raise ValueError("Invalid index.")
-        
+
         if self.get_device_info(device_index)["maxOutputChannels"] == 0:
             raise ValueError("The device doesn't have any output channels.")
-        
+
         self._output_device_index = device_index
 
     def get_device_info(self, device_index: Optional[int] = None) -> dict:
@@ -372,15 +442,16 @@ class Music:
 
         device_index: The device's index. Return the default output device info if `None`.
         """
-        if device_index != None:
-            if type(device_index) != int:
-                raise ValueError("The device's index must be an integer.")
-            
-            if device_index < 0 or device_index > self.get_device_count() - 1:
-                raise ValueError("Invalid index.")
+        if device_index == None:
+            return self._pa.get_default_output_device_info()
         
-            return self._pa.get_device_info_by_index(device_index)
-        return self._pa.get_default_output_device_info()
+        if type(device_index) != int:
+            raise TypeError("The device's index must be an integer.")
+        
+        if device_index < 0 or device_index > self.get_device_count() - 1:
+            raise ValueError("Invalid index.")
+    
+        return self._pa.get_device_info_by_index(device_index)
 
     def play(self, loop: int = 0, start: Union[int, float] = 0, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
@@ -400,13 +471,16 @@ class Music:
         self.stop()
 
         if self.path == None:
-            raise ValueError("Please specify the file path before starting the music stream.")
-        
+            raise ValueError("Please specify the path before starting the music stream.")
+
         if type(loop) != int:
             raise TypeError("Loop must be an integer.")
         elif loop < -1:
             return
-        
+
+        if type(start) != int and type(start) != float:
+            raise TypeError("Start position must be an integer/a float.")
+
         self.currently_pause = False
         self.exception = None
         self._start = None
@@ -428,14 +502,14 @@ class Music:
         """
         Pause the music stream if it's current playing and not paused. It can be resumed with `resume()` function.
         """
-        if self.get_busy() and not self.currently_pause:
+        if self.get_busy() and not self.get_pause():
             self.currently_pause = True
 
     def resume(self) -> None:
         """
         Resume the music stream after it has been paused.
         """
-        if self.get_busy() and self.currently_pause:
+        if self.get_busy() and self.get_pause():
             self.currently_pause = False
 
     def stop(self) -> None:
@@ -459,13 +533,15 @@ class Music:
 
         raise_exception (optional): Specify whether an exception should be thrown (or silently ignored).
         """
-        if self.get_busy():
-            while self.get_busy():
-                pass
+        while self.get_busy():
+            pass
 
-            exception = self.get_exception()
-            if exception and raise_exception:
-                raise exception
+        if not raise_exception:
+            return
+
+        exception = self.get_exception()
+        if exception:
+            raise exception
     
     def get_pause(self) -> bool:
         """
@@ -484,6 +560,9 @@ class Music:
 
         position: Where to set the music stream position in seconds.
         """
+        if type(position) != int and type(position) != float:
+            raise TypeError("Position must be an integer/a float.")
+
         if self.get_busy():
             if position < 0:
                 self._position = 0
@@ -519,6 +598,9 @@ class Music:
 
         volume: Music stream volume.
         """
+        if type(volume) != int and type(volume) != float:
+            raise TypeError("Volume must be an integer/a float.")
+
         if volume >= 0 and volume <= 2:
             self._volume = round(volume, 2)
 
@@ -626,7 +708,7 @@ class Music:
                     else:
                         self._start = time.time_ns() - offset - self._pause_time
 
-                if not self.currently_pause:
+                if not self.get_pause():
                     if self._start_pause:
                         self._pause_time += time.time_ns() - self._start_pause
                         self._start_pause = None
@@ -668,6 +750,12 @@ class Music:
 
         digit: Number of digits to round.
         """
+        if type(time) != int and type(time) != float:
+            raise TypeError("Time must be an integer/a float.")
+
+        if type(digit) != int:
+            raise TypeError("Digit must be an integer.")
+
         return round(time / 1000000000, digit)
 
     @classmethod
@@ -682,11 +770,39 @@ class Music:
 
         digit: Number of digits to round.
         """
+        if type(time) != int and type(time) != float:
+            raise TypeError("Time must be an integer/a float.")
+
+        if type(digit) != int:
+            raise TypeError("Digit must be an integer.")
+
         return round(time * 1000000000, digit)
     
+    def __str__(self) -> str:
+        """
+        Return a string represents the object.
+        """
+        if self.path == None:
+            return "<Music()>"
+
+        return f"<Music('{self.path}')>"
+
+    def __repr__(self) -> str:
+        """
+        Return a string represents the object.
+        """
+        return self.__str__()
+
     def __del__(self) -> None:
         """
         Clean up everything before deleting the class.
         """
-        self.stop()
-        self._pa.terminate()
+        try:
+            self.stop()
+        except AttributeError:
+            pass
+
+        try:
+            self._pa.terminate()
+        except AttributeError:
+            pass
