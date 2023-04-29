@@ -12,6 +12,7 @@ MusicEnded = "MusicEnded"
 SInt8 = "SInt8"
 SInt16 = "SInt16"
 SInt32 = "SInt32"
+UInt8 = "UInt8"
 
 MixerModule = "MixerModule"
 SoundClass = "SoundClass"
