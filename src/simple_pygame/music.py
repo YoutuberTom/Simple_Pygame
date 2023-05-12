@@ -455,7 +455,7 @@ class Music:
 
     def play(self, loop: int = 0, start: Union[int, float] = 0, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
-        Start the music stream. If music stream is current playing it will be restarted.
+        Start the music stream. If the music stream is current playing it will be restarted.
 
         Parameters
         ----------
@@ -524,17 +524,19 @@ class Music:
         
         self._music_thread = None
 
-    def join(self, raise_exception: bool = True) -> None:
+    def join(self, delay: Union[int, float] = 0.1, raise_exception: bool = True) -> None:
         """
         Wait until the music stream stops.
 
         Parameters
         ----------
 
+        delay (optional): The interval between each check to determine if the music stream is currently busy in seconds.
+
         raise_exception (optional): Specify whether an exception should be thrown (or silently ignored).
         """
         while self.get_busy():
-            pass
+            time.sleep(delay)
 
         if not raise_exception:
             return
@@ -545,7 +547,7 @@ class Music:
     
     def get_pause(self) -> bool:
         """
-        Return `True` if currently pausing music stream, otherwise `False`.
+        Return `True` if currently pausing the music stream, otherwise `False`.
         """
         if self.get_busy():
             return self.currently_pause
@@ -612,7 +614,7 @@ class Music:
 
     def get_busy(self) -> bool:
         """
-        Return `True` if currently playing or pausing music stream, otherwise `False`.
+        Return `True` if currently playing or pausing the music stream, otherwise `False`.
         """
         if self._music_thread:
             if self._music_thread.is_alive():
