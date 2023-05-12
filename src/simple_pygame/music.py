@@ -2,7 +2,7 @@ import simple_pygame, pyaudio, audioop, subprocess, threading, json, time, sys
 from typing import Optional, Union, Iterable
 
 class Music:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         A music stream from a file contains audio. This class won't load the entire file.
 
@@ -337,7 +337,7 @@ class Music:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 8192, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -628,7 +628,7 @@ class Music:
         """
         return self.exception
 
-    def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 8192, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
+    def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
         Start the music stream. This function is meant for use by the `Class` and not for general use.
 
