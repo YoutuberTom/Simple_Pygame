@@ -735,8 +735,8 @@ class Music:
                     self._start_pause = time.time_ns()
         except Exception as error:
             self.exception = error
-
-        clean_up()
+        finally:
+            clean_up()
 
     @classmethod
     def nanoseconds_to_seconds(self, time: Union[int, float], digit: int = 4) -> Union[int, float]:
