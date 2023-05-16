@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simple_pygame"
-version = "0.0.4"
+version = "0.0.5"
 description = "A Python library that provides many features using Pygame and other libraries."
 readme = "README.md"
 requires-python = ">= 3.7"
@@ -19,4 +19,4 @@ classifiers = [
 ]
 
 [project.urls]
-"Github" = "https://github.com/YoutuberTom/Simple_Pygame"
+"Source" = "https://github.com/YoutuberTom/Simple_Pygame"
