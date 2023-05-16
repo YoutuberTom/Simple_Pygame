@@ -1,4 +1,17 @@
-import simple_pygame, pyaudio, audioop, subprocess, threading, json, time, sys
+"""
+A module for playing music.
+
+Requirements
+------------
+
+- Pyaudio library.
+
+- FFmpeg.
+
+- FFprobe (optional).
+"""
+import pyaudio, audioop, subprocess, threading, json, time, sys
+from .constants import SInt8, SInt16, SInt32, UInt8, MusicIsLoading, MusicEnded
 from typing import Optional, Union, Iterable
 
 class Music:
@@ -66,7 +79,7 @@ class Music:
     @classmethod
     def get_information(self, path: str, use_ffmpeg: bool = False, ffmpeg_or_ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> Optional[dict]:
         """
-        Return a dict contains all the file information. Return `None` if cannot read the file.
+        Returns a dict contains all the file information. Return `None` if cannot read the file.
 
         Parameters
         ----------
@@ -122,7 +135,7 @@ class Music:
     @classmethod
     def extract_information(self, raw_data: Iterable[str]) -> dict:
         """
-        Return a dict contains the processed information of the file. This function is meant for use by the `Class` and not for general use.
+        Returns a dict contains the processed information of the file. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -264,7 +277,7 @@ class Music:
     @classmethod
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, data_format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> list:
         """
-        Return a pipe contains ffmpeg output, a dict contains the file information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
+        Returns a pipe contains ffmpeg output, a dict contains the file information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -375,28 +388,28 @@ class Music:
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
-    def set_format(self, data_format: any = simple_pygame.SInt16) -> None:
+    def set_format(self, data_format: any = SInt16) -> None:
         """
-        Set the output data format. Default is `simple_pygame.SInt16`.
+        Sets the output data format. Default is `simple_pygame.SInt16`.
 
         Parameters
         ----------
 
         data_format (optional): Specify what format to use.
         """
-        if data_format == simple_pygame.SInt8:
+        if data_format == SInt8:
             self.paFormat = pyaudio.paInt8
             self.ffmpegFormat = "s8"
             self.aoFormat = 1
-        elif data_format == simple_pygame.SInt16:
+        elif data_format == SInt16:
             self.paFormat = pyaudio.paInt16
             self.ffmpegFormat = "s16le" if sys.byteorder == "little" else "s16be"
             self.aoFormat = 2
-        elif data_format == simple_pygame.SInt32:
+        elif data_format == SInt32:
             self.paFormat = pyaudio.paInt32
             self.ffmpegFormat = "s32le" if sys.byteorder == "little" else "s32be"
             self.aoFormat = 4
-        elif data_format == simple_pygame.UInt8:
+        elif data_format == UInt8:
             self.paFormat = pyaudio.paUInt8
             self.ffmpegFormat = "u8"
             self.aoFormat = 1
@@ -405,13 +418,13 @@ class Music:
 
     def get_device_count(self) -> int:
         """
-        Return the number of PortAudio Host APIs.
+        Returns the number of PortAudio Host APIs.
         """
         return self._pa.get_device_count()
 
     def set_output_device_by_index(self, device_index: Optional[int] = None) -> None:
         """
-        Set the output device by index.
+        Sets the output device by index.
 
         Parameters
         ----------
@@ -435,7 +448,7 @@ class Music:
 
     def get_device_info(self, device_index: Optional[int] = None) -> dict:
         """
-        Return the device info.
+        Returns the device info.
 
         Parameters
         ----------
@@ -455,7 +468,7 @@ class Music:
 
     def play(self, loop: int = 0, start: Union[int, float] = 0, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
-        Start the music stream. If the music stream is current playing it will be restarted.
+        Starts the music stream. If the music stream is current playing it will be restarted.
 
         Parameters
         ----------
@@ -500,21 +513,21 @@ class Music:
 
     def pause(self) -> None:
         """
-        Pause the music stream if it's current playing and not paused. It can be resumed with `resume()` function.
+        Pauses the music stream if it's current playing and not paused. It can be resumed with `resume()` function.
         """
         if self.get_busy() and not self.get_pause():
             self.currently_pause = True
 
     def resume(self) -> None:
         """
-        Resume the music stream after it has been paused.
+        Resumes the music stream after it has been paused.
         """
         if self.get_busy() and self.get_pause():
             self.currently_pause = False
 
     def stop(self) -> None:
         """
-        Stop the music stream if it's current playing.
+        Stops the music stream if it's current playing.
         """
         if self.get_busy():
             self._terminate = True
@@ -526,7 +539,7 @@ class Music:
 
     def join(self, delay: Union[int, float] = 0.1, raise_exception: bool = True) -> None:
         """
-        Wait until the music stream stops.
+        Waits until the music stream stops.
 
         Parameters
         ----------
@@ -547,7 +560,7 @@ class Music:
     
     def get_pause(self) -> bool:
         """
-        Return `True` if currently pausing the music stream, otherwise `False`.
+        Returns `True` if currently pausing the music stream, otherwise `False`.
         """
         if self.get_busy():
             return self.currently_pause
@@ -555,7 +568,7 @@ class Music:
 
     def set_position(self, position: Union[int, float]) -> None:
         """
-        Set the current music position where the music will continue to play.
+        Sets the current music position where the music will continue to play.
 
         Parameters
         ----------
@@ -576,7 +589,7 @@ class Music:
 
     def get_position(self) -> any:
         """
-        Return the current music position in seconds if it's current playing or pausing, `simple_pygame.MusicIsLoading` if the music stream is loading, otherwise `simple_pygame.MusicEnded`.
+        Returns the current music position in seconds if it's current playing or pausing, `simple_pygame.MusicIsLoading` if the music stream is loading, otherwise `simple_pygame.MusicEnded`.
         """
         if self.get_busy():
             position = self._start
@@ -587,13 +600,13 @@ class Music:
                 else:
                     return self.nanoseconds_to_seconds(time.time_ns() - position - self._pause_time)
             else:
-                return simple_pygame.MusicIsLoading
+                return MusicIsLoading
         else:
-            return simple_pygame.MusicEnded
+            return MusicEnded
 
     def set_volume(self, volume: Union[int, float]) -> None:
         """
-        Set the music stream volume. The volume must be a int/float between `0` and `2`, `1` is the original volume.
+        Sets the music stream volume. The volume must be a int/float between `0` and `2`, `1` is the original volume.
 
         Parameters
         ----------
@@ -608,13 +621,13 @@ class Music:
 
     def get_volume(self) -> Union[int, float]:
         """
-        Return the music stream volume.
+        Returns the music stream volume.
         """
         return self._volume
 
     def get_busy(self) -> bool:
         """
-        Return `True` if currently playing or pausing the music stream, otherwise `False`.
+        Returns `True` if currently playing or pausing the music stream, otherwise `False`.
         """
         if self._music_thread:
             if self._music_thread.is_alive():
@@ -626,13 +639,13 @@ class Music:
 
     def get_exception(self) -> Optional[Exception]:
         """
-        Return `None` if no exception is found, otherwise the exception.
+        Returns `None` if no exception is found, otherwise the exception.
         """
         return self.exception
 
     def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
-        Start the music stream. This function is meant for use by the `Class` and not for general use.
+        Starts the music stream. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -651,7 +664,7 @@ class Music:
         """
         def clean_up() -> None:
             """
-            Clean up everything before stopping the music stream.
+            Cleans up everything before stopping the music stream.
             """
             try:
                 pipe.terminate()
@@ -668,7 +681,7 @@ class Music:
 
         def calculate_offset(position: Union[int, float]) -> Union[int, float]:
             """
-            Return the music stream offset position.
+            Returns the music stream offset position.
 
             Parameters
             ----------
@@ -743,7 +756,7 @@ class Music:
     @classmethod
     def nanoseconds_to_seconds(self, time: Union[int, float], digit: int = 4) -> Union[int, float]:
         """
-        Convert nanoseconds to seconds. It's meant for use by the `Class` and not for general use.
+        Converts nanoseconds to seconds. It's meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -763,7 +776,7 @@ class Music:
     @classmethod
     def seconds_to_nanoseconds(self, time: Union[int, float], digit: int = 4) -> Union[int, float]:
         """
-        Convert seconds to nanoseconds. It's meant for use by the `Class` and not for general use.
+        Converts seconds to nanoseconds. It's meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -782,7 +795,7 @@ class Music:
     
     def __str__(self) -> str:
         """
-        Return a string represents the object.
+        Returns a string represents the object.
         """
         if self.path == None:
             return "<Music()>"
@@ -791,13 +804,13 @@ class Music:
 
     def __repr__(self) -> str:
         """
-        Return a string represents the object.
+        Returns a string represents the object.
         """
         return self.__str__()
 
     def __del__(self) -> None:
         """
-        Clean up everything before deleting the class.
+        Cleans up everything before deleting the class.
         """
         try:
             self.stop()
