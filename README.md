@@ -17,7 +17,6 @@ Simple Pygame is a [Python](https://www.python.org/) library that provides many 
 | Library | Version |
 |:--------|:--------|
 |pygame   |>= 2.0.0 |
-|moviepy  |>= 1.0.0 |
 |pyaudio  |>= 0.2.11|
 
 ## Other requirements:
