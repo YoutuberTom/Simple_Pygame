@@ -1,34 +1,22 @@
 """
 Simple Pygame is a Python library that provides many features using Pygame and other libraries. It can help you create multimedia programs much easier and cleaner.
 """
-from .version import __version__
-
+import gc
+from .constants import *
 from . import mixer
-
-SoundEnded = "SoundEnded"
-MusicIsLoading = "MusicIsLoading"
-MusicEnded = "MusicEnded"
-
-SInt8 = "SInt8"
-SInt16 = "SInt16"
-SInt32 = "SInt32"
-UInt8 = "UInt8"
-
-MixerModule = "MixerModule"
-SoundClass = "SoundClass"
-MusicClass = "MusicClass"
+from . import transform
 
 _init = False
 
 def get_init() -> bool:
     """
-    Return `True` if Simple Pygame is currently initialized, otherwise `False`.
+    Returns `True` if Simple Pygame is currently initialized, otherwise `False`.
     """
     return _init
 
 def init() -> tuple:
     """
-    Initialize all imported Simple Pygame modules and return successfully initialized modules.
+    Initializes all imported Simple Pygame modules and return successfully initialized modules.
     """
     global _init
 
@@ -49,15 +37,13 @@ def init() -> tuple:
 
 def quit() -> tuple:
     """
-    Uninitialize all imported Simple Pygame modules and return successfully uninitialized modules.
+    Uninitializes all imported Simple Pygame modules and return successfully uninitialized modules.
     """
     global _init
 
     if not get_init():
         return ()
     _init = False
-    
-    import gc
 
     successfully_quit = []
 
