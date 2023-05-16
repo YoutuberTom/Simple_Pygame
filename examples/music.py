@@ -1,7 +1,7 @@
 """
 Play a file contains audio using the `Music` class.
 """
-import simple_pygame.mixer, sys, os
+import simple_pygame, sys, os
 successfully_imported = simple_pygame.mixer.init()
 
 if simple_pygame.MusicClass not in successfully_imported:
