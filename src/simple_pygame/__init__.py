@@ -4,7 +4,10 @@ Simple Pygame is a Python library that provides many features using Pygame and o
 import gc
 from .constants import *
 from . import mixer
-from . import transform
+try:
+    from . import transform
+except ImportError:
+    pass
 
 _init = False
 
