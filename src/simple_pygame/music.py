@@ -49,6 +49,8 @@ class Music:
 
         if type(chunk) != int:
             raise TypeError("Chunk must be an integer.")
+        elif chunk <= 0:
+            raise ValueError("Chunk must be greater than 0.")
 
         if type(ffmpeg_path) != str:
             raise TypeError("FFmpeg path must be a string.")
@@ -303,6 +305,8 @@ class Music:
 
         if type(position) != int and type(position) != float:
             raise TypeError("Position must be an integer/a float.")
+        elif position < 0:
+            position = 0
 
         if type(stream) != int:
             raise TypeError("Stream must be an integer.")
@@ -335,13 +339,8 @@ class Music:
         
         if len(audio_streams) == 0:
             raise ValueError("The file doesn't contain audio.")
-        else:
-            stream = int(stream)
-
-            if stream < 0:
-                stream = 0
-            elif stream >= len(audio_streams):
-                stream = 0
+        elif stream < 0 or stream >= len(audio_streams):
+            stream = 0
 
         ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"]
 
@@ -375,6 +374,8 @@ class Music:
 
         if type(chunk) != int:
             raise TypeError("Chunk must be an integer.")
+        elif chunk <= 0:
+            raise ValueError("Chunk must be greater than 0.")
 
         if type(ffmpeg_path) != str:
             raise TypeError("FFmpeg path must be a string.")
@@ -606,7 +607,7 @@ class Music:
 
     def set_volume(self, volume: Union[int, float]) -> None:
         """
-        Sets the music stream volume. The volume must be a int/float between `0` and `2`, `1` is the original volume.
+        Sets the music stream volume. The volume must be an integer/a float between `0` and `2`, `1` is the original volume.
 
         Parameters
         ----------
@@ -618,6 +619,8 @@ class Music:
 
         if volume >= 0 and volume <= 2:
             self._volume = round(volume, 2)
+        else:
+            raise ValueError("Volume must be an integer/a float between 0 and 2.")
 
     def get_volume(self) -> Union[int, float]:
         """
@@ -704,7 +707,10 @@ class Music:
             paFormat = self.paFormat
             ffmpegFormat = self.ffmpegFormat
             aoFormat = self.aoFormat
-            position = self._position
+            if self._position < 0:
+                position = 0
+            else:
+                position = self._position
 
             pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
             stream_out = self._pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, output_device_index = self._output_device_index, frames_per_buffer = chunk)
@@ -713,7 +719,10 @@ class Music:
             self._start = time.time_ns() - offset
             while not self._terminate:
                 if self._reposition:
-                    position = self._position
+                    if self._position < 0:
+                        position = 0
+                    else:
+                        position = self._position
                     pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
                     self._reposition = False
 
