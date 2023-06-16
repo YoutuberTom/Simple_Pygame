@@ -490,7 +490,7 @@ class Music:
         if type(loop) != int:
             raise TypeError("Loop must be an integer.")
         elif loop < -1:
-            return
+            raise ValueError("Loop must be greater than or equal to -1.")
 
         if type(start) != int and type(start) != float:
             raise TypeError("Start position must be an integer/a float.")
@@ -549,6 +549,11 @@ class Music:
 
         raise_exception (optional): Specify whether an exception should be thrown (or silently ignored).
         """
+        if type(delay) != int and type(delay) != float:
+            raise TypeError("Delay must be an integer/a float.")
+        elif delay < 0:
+            raise ValueError("Delay must be non-negative.")
+
         while self.get_busy():
             time.sleep(delay)
 
@@ -776,6 +781,8 @@ class Music:
         """
         if type(time) != int and type(time) != float:
             raise TypeError("Time must be an integer/a float.")
+        elif time < 0:
+            raise ValueError("Time must be non-negative.")
 
         if type(digit) != int:
             raise TypeError("Digit must be an integer.")
@@ -796,6 +803,8 @@ class Music:
         """
         if type(time) != int and type(time) != float:
             raise TypeError("Time must be an integer/a float.")
+        elif time < 0:
+            raise ValueError("Time must be non-negative.")
 
         if type(digit) != int:
             raise TypeError("Digit must be an integer.")
