@@ -2,6 +2,7 @@
 Simple Pygame is a Python library that provides many features using Pygame and other libraries. It can help you create multimedia programs much easier and cleaner.
 """
 import gc
+from .constants import __version__
 from .constants import *
 from . import mixer
 try:
