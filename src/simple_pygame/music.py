@@ -10,7 +10,7 @@ Requirements
 
 - FFprobe (optional).
 """
-import pyaudio, audioop, subprocess, threading, json, time, sys
+import pyaudio, audioop, subprocess, threading, platform, json, time, sys
 from .constants import SInt8, SInt16, SInt32, UInt8, MusicIsLoading, MusicEnded
 from typing import Optional, Union, Iterable
 
@@ -344,8 +344,13 @@ class Music:
 
         ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"]
 
+        if platform.system() == "Windows":
+            creationflags = subprocess.CREATE_NO_WINDOW
+        else:
+            creationflags = 0
+
         try:
-            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = subprocess.CREATE_NO_WINDOW), information, audio_streams[stream]
+            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
