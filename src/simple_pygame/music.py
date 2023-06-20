@@ -344,10 +344,9 @@ class Music:
 
         ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"]
 
+        creationflags = 0
         if platform.system() == "Windows":
             creationflags = subprocess.CREATE_NO_WINDOW
-        else:
-            creationflags = 0
 
         try:
             return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
