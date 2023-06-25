@@ -530,16 +530,26 @@ class Music:
         if self.get_busy() and self.get_pause():
             self.currently_pause = False
 
-    def stop(self) -> None:
+    def stop(self, delay: Union[int, float] = 0.1) -> None:
         """
         Stops the music stream if it's current playing.
+
+        Parameters
+        ----------
+
+        delay (optional): The interval between each check to determine if the music stream is currently busy in seconds.
         """
+        if type(delay) != int and type(delay) != float:
+            raise TypeError("Delay must be an integer/a float.")
+        elif delay < 0:
+            raise ValueError("Delay must be non-negative.")
+
         if self.get_busy():
             self._terminate = True
 
             while self.get_busy():
-                pass
-        
+                time.sleep(delay)
+
         self._music_thread = None
 
     def join(self, delay: Union[int, float] = 0.1, raise_exception: bool = True) -> None:
@@ -589,10 +599,7 @@ class Music:
             raise TypeError("Position must be an integer/a float.")
 
         if self.get_busy():
-            if position < 0:
-                self._position = 0
-            else:
-                self._position = position
+            self._position = 0 if position < 0 else position
             self._reposition = True
         else:
             self.play(start = position)
@@ -601,18 +608,17 @@ class Music:
         """
         Returns the current music position in seconds if it's current playing or pausing, `simple_pygame.MusicIsLoading` if the music stream is loading, otherwise `simple_pygame.MusicEnded`.
         """
-        if self.get_busy():
-            position = self._start
-
-            if position:
-                if self._start_pause:
-                    return self.nanoseconds_to_seconds(self._start_pause - position - self._pause_time)
-                else:
-                    return self.nanoseconds_to_seconds(time.time_ns() - position - self._pause_time)
-            else:
-                return MusicIsLoading
-        else:
+        if not self.get_busy():
             return MusicEnded
+
+        position = self._start
+        if not position:
+            return MusicIsLoading
+
+        if self._start_pause:
+            return self.nanoseconds_to_seconds(self._start_pause - position - self._pause_time)
+        else:
+            return self.nanoseconds_to_seconds(time.time_ns() - position - self._pause_time)
 
     def set_volume(self, volume: Union[int, float]) -> None:
         """
@@ -626,7 +632,7 @@ class Music:
         if type(volume) != int and type(volume) != float:
             raise TypeError("Volume must be an integer/a float.")
 
-        if volume >= 0 and volume <= 2:
+        if 0 <= volume <= 2:
             self._volume = round(volume, 2)
         else:
             raise ValueError("Volume must be an integer/a float between 0 and 2.")
@@ -641,11 +647,11 @@ class Music:
         """
         Returns `True` if currently playing or pausing the music stream, otherwise `False`.
         """
-        if self._music_thread:
-            if self._music_thread.is_alive():
-                return True
-            else:
-                return False
+        if not self._music_thread:
+            return False
+
+        if self._music_thread.is_alive():
+            return True
         else:
             return False
 
@@ -716,10 +722,7 @@ class Music:
             paFormat = self.paFormat
             ffmpegFormat = self.ffmpegFormat
             aoFormat = self.aoFormat
-            if self._position < 0:
-                position = 0
-            else:
-                position = self._position
+            position = 0 if self._position < 0 else self._position
 
             pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
             stream_out = self._pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, output_device_index = self._output_device_index, frames_per_buffer = chunk)
@@ -728,10 +731,8 @@ class Music:
             self._start = time.time_ns() - offset
             while not self._terminate:
                 if self._reposition:
-                    if self._position < 0:
-                        position = 0
-                    else:
-                        position = self._position
+                    position = 0 if self._position < 0 else self._position
+
                     pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
                     self._reposition = False
 
@@ -770,6 +771,18 @@ class Music:
             self.exception = error
         finally:
             clean_up()
+
+    @classmethod
+    def enquote(self, value: any) -> any:
+        """
+        Add single quotation marks at the start and end of a string, while leaving other types unchanged.
+
+        Parameters
+        ----------
+
+        value: Any value.
+        """
+        return f"'{value}'" if type(value) == str else value
 
     @classmethod
     def nanoseconds_to_seconds(self, time: Union[int, float], digit: int = 4) -> Union[int, float]:
@@ -814,15 +827,12 @@ class Music:
             raise TypeError("Digit must be an integer.")
 
         return round(time * 1000000000, digit)
-    
+
     def __str__(self) -> str:
         """
         Returns a string represents the object.
         """
-        if self.path == None:
-            return "<Music()>"
-
-        return f"<Music('{self.path}')>"
+        return f"<Music(path={self.enquote(self.path)}, stream={self.enquote(self.stream)}, chunk={self.enquote(self.chunk)}, ffmpeg_path={self.enquote(self.ffmpeg_path)}, ffprobe_path={self.enquote(self.ffprobe_path)})>"
 
     def __repr__(self) -> str:
         """
