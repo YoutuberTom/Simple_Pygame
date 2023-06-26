@@ -471,7 +471,7 @@ class Music:
     
         return self._pa.get_device_info_by_index(device_index)
 
-    def play(self, loop: int = 0, start: Union[int, float] = 0, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
+    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
         Starts the music stream. If the music stream is current playing it will be restarted.
 
@@ -481,6 +481,8 @@ class Music:
         loop (optional): How many times to repeat the music. If this args is set to `-1` repeats indefinitely.
 
         start (optional): Where the music stream starts playing in seconds.
+
+        delay (optional): The interval between each check to determine if the music stream has resumed when it's currently paused in seconds.
 
         exception_on_underflow (optional): Specify whether an exception should be thrown (or silently ignored) on buffer underflow. Default to `False` for improved performance, especially on slower platforms.
 
@@ -499,6 +501,11 @@ class Music:
         if type(start) != int and type(start) != float:
             raise TypeError("Start position must be an integer/a float.")
 
+        if type(delay) != int and type(delay) != float:
+            raise TypeError("Delay must be an integer/a float.")
+        elif delay < 0:
+            raise ValueError("Delay must be non-negative.")
+
         self.currently_pause = False
         self.exception = None
         self._start = None
@@ -512,7 +519,7 @@ class Music:
         else:
             self._position = start
 
-        self._music_thread = threading.Thread(target = self.music, args = (self.path, loop, self.stream, self.chunk, exception_on_underflow, use_ffmpeg))
+        self._music_thread = threading.Thread(target = self.music, args = (self.path, loop, self.stream, self.chunk, delay, exception_on_underflow, use_ffmpeg))
         self._music_thread.daemon = True
         self._music_thread.start()
 
@@ -661,7 +668,7 @@ class Music:
         """
         return self.exception
 
-    def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
+    def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
         Starts the music stream. This function is meant for use by the `Class` and not for general use.
 
@@ -675,6 +682,8 @@ class Music:
         stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing music.
+
+        delay (optional): The interval between each check to determine if the music stream has resumed when it's currently paused in seconds.
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Default to `False` for improved performance, especially on slower platforms.
 
@@ -737,36 +746,37 @@ class Music:
                     self._reposition = False
 
                     offset = calculate_offset(position)
-                    if self._start_pause:
-                        self._start = self._start_pause - offset - self._pause_time
-                    else:
-                        self._start = time.time_ns() - offset - self._pause_time
+                    self._start = self._start_pause - offset - self._pause_time if self._start_pause else time.time_ns() - offset - self._pause_time
 
-                if not self.get_pause():
-                    if self._start_pause:
-                        self._pause_time += time.time_ns() - self._start_pause
-                        self._start_pause = None
+                if self.get_pause():
+                    if not self._start_pause:
+                        self._start_pause = time.time_ns()
 
-                    data = pipe.stdout.read(chunk)
+                    time.sleep(delay)
+                    continue
 
-                    if data:
-                        data = audioop.mul(data, aoFormat, self._volume)
-                        stream_out.write(data, exception_on_underflow = exception_on_underflow)
-                    else:
-                        self._pause_time = 0
+                if self._start_pause:
+                    self._pause_time += time.time_ns() - self._start_pause
+                    self._start_pause = None
 
-                        if loop == -1:
-                            pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
-                            self._start = time.time_ns()
-                        elif loop == 0:
-                            break
-                        else:
-                            loop -= 1
+                data = pipe.stdout.read(chunk)
+                if data:
+                    data = audioop.mul(data, aoFormat, self._volume)
+                    stream_out.write(data, exception_on_underflow = exception_on_underflow)
 
-                            pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
-                            self._start = time.time_ns()
-                elif not self._start_pause:
-                    self._start_pause = time.time_ns()
+                    continue
+
+                self._pause_time = 0
+                if loop == -1:
+                    pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
+                    self._start = time.time_ns()
+                elif loop > 0:
+                    loop -= 1
+
+                    pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
+                    self._start = time.time_ns()
+                else:
+                    break
         except Exception as error:
             self.exception = error
         finally:
