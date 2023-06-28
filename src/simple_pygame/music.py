@@ -858,7 +858,7 @@ class Music:
         """
         Return a string represents the object.
         """
-        return f"<Music(path={self.enquote(self.path)}, stream={self.enquote(self.stream)}, chunk={self.enquote(self.chunk)}, ffmpeg_path={self.enquote(self.ffmpeg_path)}, ffprobe_path={self.enquote(self.ffprobe_path)})>"
+        return f"<Music(path={self.enquote(self.path)}, stream={self.enquote(self.stream)}, chunk={self.enquote(self.chunk)}, frames_per_buffer={self.enquote(self.frames_per_buffer)}, ffmpeg_path={self.enquote(self.ffmpeg_path)}, ffprobe_path={self.enquote(self.ffprobe_path)})>"
 
     def __repr__(self) -> str:
         """
