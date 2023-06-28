@@ -10,6 +10,7 @@ SInt32 = "SInt32"
 UInt8 = "UInt8"
 
 MixerModule = "MixerModule"
+TransformModule = "TransformModule"
 MusicClass = "MusicClass"
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
