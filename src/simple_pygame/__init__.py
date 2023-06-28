@@ -5,22 +5,18 @@ import gc
 from .constants import __version__
 from .constants import *
 from . import mixer
-try:
-    from . import transform
-except ImportError:
-    pass
 
 _init = False
 
 def get_init() -> bool:
     """
-    Returns `True` if Simple Pygame is currently initialized, otherwise `False`.
+    Return `True` if Simple Pygame is currently initialized, otherwise `False`.
     """
     return _init
 
 def init() -> tuple:
     """
-    Initializes all imported Simple Pygame modules and return successfully initialized modules.
+    Import/Initialize all Simple Pygame modules and return successfully imported/initialized modules.
     """
     global _init
 
@@ -33,6 +29,13 @@ def init() -> tuple:
     mixer_successfully_imported = mixer.init()
     if mixer_successfully_imported:
         successfully_imported.append(MixerModule)
+    
+    try:
+        global transform
+        from . import transform
+        successfully_imported.append(TransformModule)
+    except ImportError:
+        pass
 
     if len(successfully_imported) == 0:
         _init = False
@@ -41,7 +44,7 @@ def init() -> tuple:
 
 def quit() -> tuple:
     """
-    Uninitializes all imported Simple Pygame modules and return successfully uninitialized modules.
+    Quit/Uninitialize all Simple Pygame modules and return successfully quit/uninitialized modules.
     """
     global _init
 
@@ -54,6 +57,13 @@ def quit() -> tuple:
     mixer_successfully_quit = mixer.quit()
     if mixer_successfully_quit:
         successfully_quit.append(MixerModule)
+
+    try:
+        global transform
+        del transform
+        successfully_quit.append(TransformModule)
+    except NameError:
+        pass
 
     gc.collect()
     return (*successfully_quit,)
