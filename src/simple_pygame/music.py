@@ -79,8 +79,11 @@ class Music:
         self._reposition = False
         self._terminate = False
 
-        self._pause_time = 0
         self._position = 0
+        self._pause_offset = None
+        self._duration = None
+        self._chunk_time = None
+        self._chunk_length = None
         self._volume = 1.0
 
         self._pa = pyaudio.PyAudio()
@@ -525,15 +528,17 @@ class Music:
         self.currently_pause = False
         self.exception = None
         self._start = None
-        self._start_pause = None
         self._reposition = False
         self._terminate = False
 
-        self._pause_time = 0
         if start < 0:
             self._position = 0
         else:
             self._position = start
+        self._pause_offset = None
+        self._duration = None
+        self._chunk_time = None
+        self._chunk_length = None
 
         self._music_thread = threading.Thread(target = self.music, args = (self.path, loop, self.stream, self.chunk, delay, exception_on_underflow, use_ffmpeg))
         self._music_thread.daemon = True
@@ -552,6 +557,10 @@ class Music:
         """
         if self.get_busy() and self.get_pause():
             self.currently_pause = False
+
+            if self._pause_offset != None:
+                self._start = time.time_ns() - self.seconds_to_nanoseconds(self._pause_offset)
+            self._pause_offset = None
 
     def stop(self, delay: Union[int, float] = 0.1) -> None:
         """
@@ -645,10 +654,7 @@ class Music:
         if self._start == None:
             return MusicIsLoading
 
-        if self._start_pause == None:
-            position = self.nanoseconds_to_seconds(time.time_ns() - self._start - self._pause_time)
-        else:
-            position = self.nanoseconds_to_seconds(self._start_pause - self._start - self._pause_time)
+        position = min(self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(time.time_ns() - self._start), self._chunk_length)), self._duration)
         return position if digit == None else round(position, digit)
 
     def set_volume(self, volume: Union[int, float]) -> None:
@@ -730,20 +736,6 @@ class Music:
 
             self.currently_pause = False
 
-        def calculate_offset(position: Union[int, float]) -> Union[int, float]:
-            """
-            Return the music stream offset position.
-
-            Parameters
-            ----------
-
-            position: The music stream position in seconds.
-            """
-            if position >= duration:
-                return self.seconds_to_nanoseconds(duration)
-            else:
-                return self.seconds_to_nanoseconds(position)
-
         try:
             ffmpeg_path = self.ffmpeg_path
             ffprobe_path = self.ffprobe_path
@@ -754,12 +746,15 @@ class Music:
             position = 0 if self._position < 0 else self._position
 
             pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
-            stream_out = self._pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
+            stream_info["sample_rate"] = int(stream_info["sample_rate"])
+            stream_out = self._pa.open(stream_info["sample_rate"], stream_info["channels"], paFormat, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
             try:
-                duration = float(stream_info["duration"])
+                self._duration = float(stream_info["duration"])
             except KeyError:
-                duration = float(info["format"]["duration"])
+                self._duration = float(info["format"]["duration"])
 
+            self._chunk_length = chunk / (aoFormat * stream_info["channels"] * stream_info["sample_rate"])
+            self._chunk_time = position if position < self._duration else self._duration
             while not self._terminate:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
@@ -767,39 +762,38 @@ class Music:
                     pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
                     self._reposition = False
 
-                    offset = calculate_offset(position)
-                    self._start = time.time_ns() - offset - self._pause_time if self._start_pause == None else self._start_pause - offset - self._pause_time
+                    self._chunk_time = position if position < self._duration else self._duration
+                    self._start = time.time_ns()
 
                 if self.get_pause():
-                    if self._start_pause == None:
-                        self._start_pause = time.time_ns()
+                    if self._pause_offset == None:
+                        self._pause_offset = min(self.nanoseconds_to_seconds(time.time_ns() - self._start), self._chunk_length)
 
                     time.sleep(delay)
                     continue
-
-                if self._start_pause != None:
-                    self._pause_time += time.time_ns() - self._start_pause
-                    self._start_pause = None
 
                 data = pipe.stdout.read(chunk)
                 if data:
                     data = audioop.mul(data, aoFormat, self._volume)
 
                     if self._start == None:
-                        offset = calculate_offset(position)
-                        self._start = time.time_ns() - offset
+                        self._start = time.time_ns()
 
                     stream_out.write(data, exception_on_underflow = exception_on_underflow)
+
+                    self._chunk_time += self._chunk_length
+                    self._start = time.time_ns()
                     continue
 
-                self._pause_time = 0
                 if loop == -1:
                     pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
+                    self._chunk_time = 0
                     self._start = time.time_ns()
                 elif loop > 0:
                     loop -= 1
 
                     pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
+                    self._chunk_time = 0
                     self._start = time.time_ns()
                 else:
                     break
