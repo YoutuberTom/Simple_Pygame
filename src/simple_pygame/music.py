@@ -15,7 +15,7 @@ from .constants import SInt8, SInt16, SInt32, UInt8, MusicIsLoading, MusicEnded
 from typing import Optional, Union, Iterable
 
 class Music:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         A music stream from a file contains audio. This class won't load the entire file.
 
@@ -37,6 +37,8 @@ class Music:
 
         chunk (optional): Number of bytes per chunk when playing music.
 
+        frames_per_buffer (optional): Specifies the number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if `None`.
+
         ffmpeg_path (optional): Path to ffmpeg.
 
         ffprobe_path (optional): Path to ffprobe.
@@ -51,6 +53,11 @@ class Music:
             raise TypeError("Chunk must be an integer.")
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
+        
+        if frames_per_buffer != None and type(frames_per_buffer) != int:
+            raise TypeError("Frames per buffer must be None/an integer.")
+        elif type(frames_per_buffer) == int and frames_per_buffer < 0:
+            raise ValueError("Frames per buffer must be greater than or equal to 0.")
 
         if type(ffmpeg_path) != str:
             raise TypeError("FFmpeg path must be a string.")
@@ -61,6 +68,7 @@ class Music:
         self.path = path
         self.stream = stream
         self.chunk = chunk
+        self.frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
         self.currently_pause = False
@@ -81,14 +89,14 @@ class Music:
     @classmethod
     def get_information(self, path: str, use_ffmpeg: bool = False, ffmpeg_or_ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> Optional[dict]:
         """
-        Returns a dict contains all the file information. Return `None` if cannot read the file.
+        Return a dict contains all the file information. Return `None` if cannot read the file.
 
         Parameters
         ----------
 
         path: Path to the file to get information.
 
-        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
+        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file information.
 
         ffmpeg_or_ffprobe_path (optional): Path to ffmpeg or ffprobe.
 
@@ -137,7 +145,7 @@ class Music:
     @classmethod
     def extract_information(self, raw_data: Iterable[str]) -> dict:
         """
-        Returns a dict contains the processed information of the file. This function is meant for use by the `Class` and not for general use.
+        Return a dict contains the processed information of the file. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -279,7 +287,7 @@ class Music:
     @classmethod
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, data_format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> list:
         """
-        Returns a pipe contains ffmpeg output, a dict contains the file information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
+        Return a pipe contains ffmpeg output, a dict contains the file information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -292,7 +300,7 @@ class Music:
 
         data_format (optional): Output data format. Use format from the `set_format()` function if `None`.
 
-        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
+        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file information.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -353,7 +361,7 @@ class Music:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -365,6 +373,8 @@ class Music:
         stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing music.
+
+        frames_per_buffer (optional): Specifies the number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if `None`.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -381,6 +391,11 @@ class Music:
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
 
+        if frames_per_buffer != None and type(frames_per_buffer) != int:
+            raise TypeError("Frames per buffer must be None/an integer.")
+        elif type(frames_per_buffer) == int and frames_per_buffer < 0:
+            raise ValueError("Frames per buffer must be greater than or equal to 0.")
+
         if type(ffmpeg_path) != str:
             raise TypeError("FFmpeg path must be a string.")
 
@@ -390,17 +405,18 @@ class Music:
         self.path = path
         self.stream = stream
         self.chunk = chunk
+        self.frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
     def set_format(self, data_format: any = SInt16) -> None:
         """
-        Sets the output data format. Default is `simple_pygame.SInt16`.
+        Set the output data format. Default is `simple_pygame.SInt16`.
 
         Parameters
         ----------
 
-        data_format (optional): Specify what format to use.
+        data_format (optional): Specifies what format to use.
         """
         if data_format == SInt8:
             self.paFormat = pyaudio.paInt8
@@ -423,13 +439,13 @@ class Music:
 
     def get_device_count(self) -> int:
         """
-        Returns the number of PortAudio Host APIs.
+        Return the number of PortAudio Host APIs.
         """
         return self._pa.get_device_count()
 
     def set_output_device_by_index(self, device_index: Optional[int] = None) -> None:
         """
-        Sets the output device by index.
+        Set the output device by index.
 
         Parameters
         ----------
@@ -453,7 +469,7 @@ class Music:
 
     def get_device_info(self, device_index: Optional[int] = None) -> dict:
         """
-        Returns the device info.
+        Return the device info.
 
         Parameters
         ----------
@@ -473,7 +489,7 @@ class Music:
 
     def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
-        Starts the music stream. If the music stream is current playing it will be restarted.
+        Start the music stream. If the music stream is current playing it will be restarted.
 
         Parameters
         ----------
@@ -484,9 +500,9 @@ class Music:
 
         delay (optional): The interval between each check to determine if the music stream has resumed when it's currently paused in seconds.
 
-        exception_on_underflow (optional): Specify whether an exception should be thrown (or silently ignored) on buffer underflow. Default to `False` for improved performance, especially on slower platforms.
+        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
-        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
+        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file information.
         """
         self.stop()
 
@@ -525,21 +541,21 @@ class Music:
 
     def pause(self) -> None:
         """
-        Pauses the music stream if it's current playing and not paused. It can be resumed with `resume()` function.
+        Pause the music stream if it's current playing and not paused. It can be resumed with `resume()` function.
         """
         if self.get_busy() and not self.get_pause():
             self.currently_pause = True
 
     def resume(self) -> None:
         """
-        Resumes the music stream after it has been paused.
+        Resume the music stream after it has been paused.
         """
         if self.get_busy() and self.get_pause():
             self.currently_pause = False
 
     def stop(self, delay: Union[int, float] = 0.1) -> None:
         """
-        Stops the music stream if it's current playing.
+        Stop the music stream if it's current playing.
 
         Parameters
         ----------
@@ -561,14 +577,14 @@ class Music:
 
     def join(self, delay: Union[int, float] = 0.1, raise_exception: bool = True) -> None:
         """
-        Waits until the music stream stops.
+        Wait until the music stream stops.
 
         Parameters
         ----------
 
         delay (optional): The interval between each check to determine if the music stream is currently busy in seconds.
 
-        raise_exception (optional): Specify whether an exception should be thrown (or silently ignored).
+        raise_exception (optional): Specifies whether an exception should be thrown (or silently ignored).
         """
         if type(delay) != int and type(delay) != float:
             raise TypeError("Delay must be an integer/a float.")
@@ -587,7 +603,7 @@ class Music:
     
     def get_pause(self) -> bool:
         """
-        Returns `True` if currently pausing the music stream, otherwise `False`.
+        Return `True` if currently pausing the music stream, otherwise `False`.
         """
         if self.get_busy():
             return self.currently_pause
@@ -595,7 +611,7 @@ class Music:
 
     def set_position(self, position: Union[int, float]) -> None:
         """
-        Sets the current music position where the music will continue to play.
+        Set the current music position where the music will continue to play.
 
         Parameters
         ----------
@@ -611,25 +627,33 @@ class Music:
         else:
             self.play(start = position)
 
-    def get_position(self) -> any:
+    def get_position(self, digit: Optional[int] = 4) -> any:
         """
-        Returns the current music position in seconds if it's current playing or pausing, `simple_pygame.MusicIsLoading` if the music stream is loading, otherwise `simple_pygame.MusicEnded`.
+        Return the current music position in seconds if it's current playing or pausing, `simple_pygame.MusicIsLoading` if the music stream is loading, otherwise `simple_pygame.MusicEnded`.
+
+        Parameters
+        ----------
+
+        digit (optional): Number of digits to round.
         """
+        if digit != None and type(digit) != int:
+            raise TypeError("Digit must be None/an integer.")
+
         if not self.get_busy():
             return MusicEnded
 
-        position = self._start
-        if not position:
+        if self._start == None:
             return MusicIsLoading
 
-        if self._start_pause:
-            return self.nanoseconds_to_seconds(self._start_pause - position - self._pause_time)
+        if self._start_pause == None:
+            position = self.nanoseconds_to_seconds(time.time_ns() - self._start - self._pause_time)
         else:
-            return self.nanoseconds_to_seconds(time.time_ns() - position - self._pause_time)
+            position = self.nanoseconds_to_seconds(self._start_pause - self._start - self._pause_time)
+        return position if digit == None else round(position, digit)
 
     def set_volume(self, volume: Union[int, float]) -> None:
         """
-        Sets the music stream volume. The volume must be an integer/a float between `0` and `2`, `1` is the original volume.
+        Set the music stream volume. The volume must be an integer/a float between `0` and `2`, `1` is the original volume.
 
         Parameters
         ----------
@@ -646,13 +670,13 @@ class Music:
 
     def get_volume(self) -> Union[int, float]:
         """
-        Returns the music stream volume.
+        Return the music stream volume.
         """
         return self._volume
 
     def get_busy(self) -> bool:
         """
-        Returns `True` if currently playing or pausing the music stream, otherwise `False`.
+        Return `True` if currently playing or pausing the music stream, otherwise `False`.
         """
         if not self._music_thread:
             return False
@@ -664,13 +688,13 @@ class Music:
 
     def get_exception(self) -> Optional[Exception]:
         """
-        Returns `None` if no exception is found, otherwise the exception.
+        Return `None` if no exception is found, otherwise the exception.
         """
         return self.exception
 
     def music(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
-        Starts the music stream. This function is meant for use by the `Class` and not for general use.
+        Start the music stream. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -685,13 +709,13 @@ class Music:
 
         delay (optional): The interval between each check to determine if the music stream has resumed when it's currently paused in seconds.
 
-        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Default to `False` for improved performance, especially on slower platforms.
+        exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
-        use_ffmpeg (optional): Specify whether to use ffmpeg or ffprobe to get the file information.
+        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file information.
         """
         def clean_up() -> None:
             """
-            Cleans up everything before stopping the music stream.
+            Clean up everything before stopping the music stream.
             """
             try:
                 pipe.terminate()
@@ -708,18 +732,13 @@ class Music:
 
         def calculate_offset(position: Union[int, float]) -> Union[int, float]:
             """
-            Returns the music stream offset position.
+            Return the music stream offset position.
 
             Parameters
             ----------
 
             position: The music stream position in seconds.
             """
-            try:
-                duration = float(stream_info["duration"])
-            except KeyError:
-                duration = float(info["format"]["duration"])
-
             if position >= duration:
                 return self.seconds_to_nanoseconds(duration)
             else:
@@ -731,13 +750,16 @@ class Music:
             paFormat = self.paFormat
             ffmpegFormat = self.ffmpegFormat
             aoFormat = self.aoFormat
+            frames_per_buffer = self.frames_per_buffer
             position = 0 if self._position < 0 else self._position
 
             pipe, info, stream_info = self.create_pipe(path, position, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
-            stream_out = self._pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, output_device_index = self._output_device_index, frames_per_buffer = chunk)
+            stream_out = self._pa.open(int(stream_info["sample_rate"]), stream_info["channels"], paFormat, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
+            try:
+                duration = float(stream_info["duration"])
+            except KeyError:
+                duration = float(info["format"]["duration"])
 
-            offset = calculate_offset(position)
-            self._start = time.time_ns() - offset
             while not self._terminate:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
@@ -746,24 +768,28 @@ class Music:
                     self._reposition = False
 
                     offset = calculate_offset(position)
-                    self._start = self._start_pause - offset - self._pause_time if self._start_pause else time.time_ns() - offset - self._pause_time
+                    self._start = time.time_ns() - offset - self._pause_time if self._start_pause == None else self._start_pause - offset - self._pause_time
 
                 if self.get_pause():
-                    if not self._start_pause:
+                    if self._start_pause == None:
                         self._start_pause = time.time_ns()
 
                     time.sleep(delay)
                     continue
 
-                if self._start_pause:
+                if self._start_pause != None:
                     self._pause_time += time.time_ns() - self._start_pause
                     self._start_pause = None
 
                 data = pipe.stdout.read(chunk)
                 if data:
                     data = audioop.mul(data, aoFormat, self._volume)
-                    stream_out.write(data, exception_on_underflow = exception_on_underflow)
 
+                    if self._start == None:
+                        offset = calculate_offset(position)
+                        self._start = time.time_ns() - offset
+
+                    stream_out.write(data, exception_on_underflow = exception_on_underflow)
                     continue
 
                 self._pause_time = 0
@@ -795,64 +821,54 @@ class Music:
         return f"'{value}'" if type(value) == str else value
 
     @classmethod
-    def nanoseconds_to_seconds(self, time: Union[int, float], digit: int = 4) -> Union[int, float]:
+    def nanoseconds_to_seconds(self, time: Union[int, float]) -> Union[int, float]:
         """
-        Converts nanoseconds to seconds. It's meant for use by the `Class` and not for general use.
+        Convert nanoseconds to seconds. It's meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
 
         time: Time in nanoseconds.
-
-        digit: Number of digits to round.
         """
         if type(time) != int and type(time) != float:
             raise TypeError("Time must be an integer/a float.")
         elif time < 0:
             raise ValueError("Time must be non-negative.")
 
-        if type(digit) != int:
-            raise TypeError("Digit must be an integer.")
-
-        return round(time / 1000000000, digit)
+        return time / 1000000000
 
     @classmethod
-    def seconds_to_nanoseconds(self, time: Union[int, float], digit: int = 4) -> Union[int, float]:
+    def seconds_to_nanoseconds(self, time: Union[int, float]) -> Union[int, float]:
         """
-        Converts seconds to nanoseconds. It's meant for use by the `Class` and not for general use.
+        Convert seconds to nanoseconds. It's meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
 
         time: Time in seconds.
-
-        digit: Number of digits to round.
         """
         if type(time) != int and type(time) != float:
             raise TypeError("Time must be an integer/a float.")
         elif time < 0:
             raise ValueError("Time must be non-negative.")
 
-        if type(digit) != int:
-            raise TypeError("Digit must be an integer.")
-
-        return round(time * 1000000000, digit)
+        return time * 1000000000
 
     def __str__(self) -> str:
         """
-        Returns a string represents the object.
+        Return a string represents the object.
         """
         return f"<Music(path={self.enquote(self.path)}, stream={self.enquote(self.stream)}, chunk={self.enquote(self.chunk)}, ffmpeg_path={self.enquote(self.ffmpeg_path)}, ffprobe_path={self.enquote(self.ffprobe_path)})>"
 
     def __repr__(self) -> str:
         """
-        Returns a string represents the object.
+        Return a string represents the object.
         """
         return self.__str__()
 
     def __del__(self) -> None:
         """
-        Cleans up everything before deleting the class.
+        Clean up everything before deleting the class.
         """
         try:
             self.stop()
