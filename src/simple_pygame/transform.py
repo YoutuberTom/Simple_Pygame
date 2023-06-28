@@ -14,7 +14,7 @@ from typing import Union, Optional
 
 def fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect: Optional[pygame.Rect] = None, special_flags: int = 0) -> pygame.Surface:
     """
-    Fills the given Surface with a solid color. If the Rect argument is given then only the area inside the specified Rect will be filled, otherwise the entire Surface will be filled.
+    Fill the given Surface with a solid color. If the Rect argument is given then only the area inside the specified Rect will be filled, otherwise the entire Surface will be filled.
 
     Parameters
     ----------
@@ -52,7 +52,7 @@ def fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect:
 
 def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect: pygame.Rect, special_flags: int = 0) -> pygame.Surface:
     """
-    Fills the area outside the specified Rect on the given Surface with a solid color.
+    Fill the area outside the specified Rect on the given Surface with a solid color.
 
     Parameters
     ----------
