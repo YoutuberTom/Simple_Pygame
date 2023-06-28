@@ -8,13 +8,13 @@ _init = False
 
 def get_init() -> bool:
     """
-    Returns `True` if the mixer module is currently initialized, otherwise `False`.
+    Return `True` if the mixer module is currently initialized, otherwise `False`.
     """
     return _init
 
 def init() -> tuple:
     """
-    Initializes the mixer module and return successfully initialized classes.
+    Initialize the mixer module and return successfully initialized classes.
     """
     global _init
 
@@ -38,7 +38,7 @@ def init() -> tuple:
 
 def quit() -> tuple:
     """
-    Uninitializes the mixer module and return successfully uninitialized classes.
+    Uninitialize the mixer module and return successfully uninitialized classes.
     """
     global _init
 
