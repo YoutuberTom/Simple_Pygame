@@ -730,6 +730,10 @@ class Music:
 
             try:
                 stream_out.stop_stream()
+            except (NameError, OSError):
+                pass
+
+            try:
                 stream_out.close()
             except NameError:
                 pass
