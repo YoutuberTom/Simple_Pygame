@@ -559,7 +559,7 @@ class Music:
             self.currently_pause = False
 
             if self._pause_offset != None:
-                self._start = time.time_ns() - self.seconds_to_nanoseconds(self._pause_offset)
+                self._start = time.monotonic_ns() - self.seconds_to_nanoseconds(self._pause_offset)
             self._pause_offset = None
 
     def stop(self, delay: Union[int, float] = 0.1) -> None:
@@ -654,7 +654,7 @@ class Music:
         if self._start == None:
             return MusicIsLoading
 
-        position = min(self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(time.time_ns() - self._start), self._chunk_length)), self._duration)
+        position = min(self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length)), self._duration)
         return position if digit == None else round(position, digit)
 
     def set_volume(self, volume: Union[int, float]) -> None:
@@ -767,11 +767,11 @@ class Music:
                     self._reposition = False
 
                     self._chunk_time = position if position < self._duration else self._duration
-                    self._start = time.time_ns()
+                    self._start = time.monotonic_ns()
 
                 if self.get_pause():
                     if self._pause_offset == None:
-                        self._pause_offset = min(self.nanoseconds_to_seconds(time.time_ns() - self._start), self._chunk_length)
+                        self._pause_offset = min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length)
 
                     time.sleep(delay)
                     continue
@@ -781,24 +781,24 @@ class Music:
                     data = audioop.mul(data, aoFormat, self._volume)
 
                     if self._start == None:
-                        self._start = time.time_ns()
+                        self._start = time.monotonic_ns()
 
                     stream_out.write(data, exception_on_underflow = exception_on_underflow)
 
                     self._chunk_time += self._chunk_length
-                    self._start = time.time_ns()
+                    self._start = time.monotonic_ns()
                     continue
 
                 if loop == -1:
                     pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
                     self._chunk_time = 0
-                    self._start = time.time_ns()
+                    self._start = time.monotonic_ns()
                 elif loop > 0:
                     loop -= 1
 
                     pipe, info, stream_info = self.create_pipe(path, 0, stream, ffmpegFormat, use_ffmpeg, ffmpeg_path, ffprobe_path)
                     self._chunk_time = 0
-                    self._start = time.time_ns()
+                    self._start = time.monotonic_ns()
                 else:
                     break
         except Exception as error:
