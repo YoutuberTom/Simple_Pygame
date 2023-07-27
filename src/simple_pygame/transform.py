@@ -29,11 +29,10 @@ def fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect:
     """
     if rect == None:
         surface.fill(color, special_flags = special_flags)
-
         return rect
 
     try:
-        rect = pygame.Rect(rect)
+        rect = pygame.Rect(rect) if type(rect) != pygame.Rect else rect
     except TypeError:
         raise ValueError("Invalid rect style object.") from None
 
@@ -47,7 +46,6 @@ def fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect:
     rect.height = min(max(0, rect.height), surface_size[1])
 
     surface.fill(color, rect, special_flags)
-
     return rect
 
 def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect: pygame.Rect, special_flags: int = 0) -> pygame.Surface:
@@ -66,7 +64,7 @@ def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list
     special_flags (optional): Additional flags to customize the fill behavior.
     """
     try:
-        rect = pygame.Rect(rect)
+        rect = pygame.Rect(rect) if type(rect) != pygame.Rect else rect
     except TypeError:
         raise ValueError("Invalid rect style object.") from None
 
