@@ -15,9 +15,9 @@ from .constants import SInt8, SInt16, SInt32, UInt8, AudioIsLoading, AudioEnded
 from typing import Optional, Union, Iterable
 
 class Audio:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
-        An audio stream from a file contains audio. This class won't load the entire file.
+        An audio object from a file contains audio. This class won't load the entire file.
 
         Requirements
         ------------
@@ -33,11 +33,13 @@ class Audio:
 
         path (optional): Path to the file contains audio.
 
-        stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing audio.
 
-        frames_per_buffer (optional): Specifies the number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if `None`.
+        frames_per_buffer (optional): Number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if this is `None`.
+
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -59,6 +61,9 @@ class Audio:
         elif type(frames_per_buffer) == int and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
+        if encoding != None and type(encoding) != str:
+            raise TypeError("Encoding must be None/a string.")
+
         if type(ffmpeg_path) != str:
             raise TypeError("FFmpeg path must be a string.")
 
@@ -69,6 +74,7 @@ class Audio:
         self.stream = stream
         self.chunk = chunk
         self.frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
+        self.encoding = encoding
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
         self.currently_pause = False
@@ -92,7 +98,7 @@ class Audio:
         self.set_format()
 
     @classmethod
-    def get_information(self, path: str, use_ffmpeg: bool = False, ffmpeg_or_ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> dict:
+    def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_or_ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> dict:
         """
         Return a dict contains all the file's information.
 
@@ -100,6 +106,8 @@ class Audio:
         ----------
 
         path: Path to the file to get information.
+
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
 
         use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
 
@@ -110,6 +118,9 @@ class Audio:
         if type(path) != str:
             raise TypeError("Path must be a string.")
 
+        if encoding != None and type(encoding) != str:
+            raise TypeError("Encoding must be None/a string.")
+
         if type(ffmpeg_or_ffprobe_path) != str:
             raise TypeError("FFmpeg/FFprobe path must be a string.")
 
@@ -118,7 +129,7 @@ class Audio:
 
         if use_ffmpeg:
             try:
-                result = subprocess.run([ffmpeg_or_ffprobe_path, "-i", path], capture_output = True, text = True)
+                result = subprocess.run([ffmpeg_or_ffprobe_path, "-i", path], capture_output = True, encoding = encoding, text = True)
             except FileNotFoundError:
                 raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
@@ -131,7 +142,7 @@ class Audio:
             ffprobe_command = [ffmpeg_or_ffprobe_path, "-loglevel", loglevel, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path]
 
             try:
-                return json.loads(subprocess.run(ffprobe_command, capture_output = True, check = True, text = True).stdout)
+                return json.loads(subprocess.run(ffprobe_command, capture_output = True, check = True, encoding = encoding, text = True).stdout)
             except FileNotFoundError:
                 raise FileNotFoundError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
             except subprocess.CalledProcessError as error:
@@ -144,12 +155,12 @@ class Audio:
     @classmethod
     def extract_information(self, raw_data: Iterable[str]) -> dict:
         """
-        Return a dict contains the processed information of the file. This function is meant for use by the `Class` and not for general use.
+        Return a dict contains the file's processed information. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
 
-        raw_data: An iterable object contains raw information of the file from ffmpeg.
+        raw_data: An iterable object contains the file's raw information from ffmpeg.
         """
         try:
             if len(raw_data) == 0:
@@ -344,9 +355,9 @@ class Audio:
         return data
 
     @classmethod
-    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, data_format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> tuple:
+    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> tuple:
         """
-        Return a pipe contains ffmpeg output, a dict contains the file's information and a dict contains the stream information. This function is meant for use by the `Class` and not for general use.
+        Return a pipe contains ffmpeg's output, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -355,9 +366,11 @@ class Audio:
 
         position (optional): Where to set the audio position in seconds.
 
-        stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
 
-        data_format (optional): Output data format. Use format from the `set_format()` function if `None`.
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
+
+        data_format (optional): Output data format. Use format from `set_format()` function if this is `None`.
 
         use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
 
@@ -378,6 +391,9 @@ class Audio:
         if type(stream) != int:
             raise TypeError("Stream must be an integer.")
 
+        if encoding != None and type(encoding) != str:
+            raise TypeError("Encoding must be None/a string.")
+
         if data_format == None:
             try:
                 data_format = self.ffmpeg_format
@@ -393,7 +409,7 @@ class Audio:
         if type(loglevel) != str:
             raise TypeError("Loglevel must be a string.")
 
-        information = self.get_information(path, use_ffmpeg, ffmpeg_path if use_ffmpeg else ffprobe_path, loglevel)
+        information = self.get_information(path, encoding, use_ffmpeg, ffmpeg_path if use_ffmpeg else ffprobe_path, loglevel)
         streams = information["streams"]
 
         audio_streams = []
@@ -417,7 +433,7 @@ class Audio:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -426,11 +442,13 @@ class Audio:
 
         path (optional): Path to the file contains audio.
 
-        stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing audio.
 
-        frames_per_buffer (optional): Specifies the number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if `None`.
+        frames_per_buffer (optional): Number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if this is `None`.
+
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -452,6 +470,9 @@ class Audio:
         elif type(frames_per_buffer) == int and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
+        if encoding != None and type(encoding) != str:
+            raise TypeError("Encoding must be None/a string.")
+
         if type(ffmpeg_path) != str:
             raise TypeError("FFmpeg path must be a string.")
 
@@ -462,12 +483,13 @@ class Audio:
         self.stream = stream
         self.chunk = chunk
         self.frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
+        self.encoding = encoding
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
     def set_format(self, data_format: any = SInt16) -> None:
         """
-        Set the output data format. Default is `simple_pygame.SInt16`.
+        Set output data format. Default is `simple_pygame.SInt16`.
 
         Parameters
         ----------
@@ -501,12 +523,12 @@ class Audio:
 
     def set_output_device_by_index(self, device_index: Optional[int] = None) -> None:
         """
-        Set the output device by index.
+        Set output device by index.
 
         Parameters
         ----------
 
-        device_index: The device's index. Set the output device to default output device if `None`.
+        device_index: Device's index. Set output device to the default output device if this is `None`.
         """
         if device_index == None:
             self._output_device_index = self.get_device_info()["index"]
@@ -525,12 +547,12 @@ class Audio:
 
     def get_device_info(self, device_index: Optional[int] = None) -> dict:
         """
-        Return the device info.
+        Return device's information.
 
         Parameters
         ----------
 
-        device_index: The device's index. Return the default output device info if `None`.
+        device_index: Device's index. Return the default output device's information if this is `None`.
         """
         if device_index == None:
             return self._pa.get_default_output_device_info()
@@ -545,16 +567,16 @@ class Audio:
 
     def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
         """
-        Start the audio stream. If the audio stream is currently playing it will be restarted.
+        Start the audio. If the audio is currently playing it will be restarted.
 
         Parameters
         ----------
 
-        loop (optional): How many times to repeat the audio. If this args is set to `-1` repeats indefinitely.
+        loop (optional): How many times to repeat the audio. If this is set to `-1` repeats indefinitely.
 
-        start (optional): Where the audio stream starts playing in seconds.
+        start (optional): Where the audio starts playing in seconds.
 
-        delay (optional): The interval between each check to determine if the audio stream has resumed when it's currently pausing in seconds.
+        delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
@@ -563,7 +585,7 @@ class Audio:
         self.stop()
 
         if self.path == None:
-            raise ValueError("Please specify the path before starting the audio stream.")
+            raise ValueError("Please specify the path before starting the audio.")
 
         if type(loop) != int:
             raise TypeError("Loop must be an integer.")
@@ -595,20 +617,20 @@ class Audio:
         self._chunk_time = None
         self._chunk_length = None
 
-        self._audio_thread = threading.Thread(target = self.audio, args = (self.path, loop, self.stream, self.chunk, delay, exception_on_underflow, use_ffmpeg))
+        self._audio_thread = threading.Thread(target = self.audio, args = (self.path, loop, self.stream, self.chunk, self.frames_per_buffer, self.encoding, delay, exception_on_underflow, use_ffmpeg, self.ffmpeg_path, self.ffprobe_path))
         self._audio_thread.daemon = True
         self._audio_thread.start()
 
     def pause(self) -> None:
         """
-        Pause the audio stream if it's currently playing and not pausing. It can be resumed with `resume()` function.
+        Pause the audio if it's currently playing and not pausing. It can be resumed with `resume()` function.
         """
         if self.get_busy() and not self.get_pause():
             self.currently_pause = True
 
     def resume(self) -> None:
         """
-        Resume the audio stream after it has been paused.
+        Resume the audio after it has been paused.
         """
         if self.get_busy() and self.get_pause():
             self.currently_pause = False
@@ -619,12 +641,12 @@ class Audio:
 
     def stop(self, delay: Union[int, float] = 0.1) -> None:
         """
-        Stop the audio stream if it's currently playing.
+        Stop the audio if it's currently playing.
 
         Parameters
         ----------
 
-        delay (optional): The interval between each check to determine if the audio stream is currently busy in seconds.
+        delay (optional): Interval between each check to determine if the audio is currently busy in seconds.
         """
         if type(delay) != int and type(delay) != float:
             raise TypeError("Delay must be an integer/a float.")
@@ -641,12 +663,12 @@ class Audio:
 
     def join(self, delay: Union[int, float] = 0.1, raise_exception: bool = True) -> None:
         """
-        Wait until the audio stream stops.
+        Wait until the audio stops.
 
         Parameters
         ----------
 
-        delay (optional): The interval between each check to determine if the audio stream is currently busy in seconds.
+        delay (optional): Interval between each check to determine if the audio is currently busy in seconds.
 
         raise_exception (optional): Specifies whether an exception should be thrown (or silently ignored).
         """
@@ -667,7 +689,7 @@ class Audio:
     
     def get_pause(self) -> bool:
         """
-        Return `True` if the audio stream is currently pausing, otherwise `False`.
+        Return `True` if the audio is currently pausing, otherwise `False`.
         """
         if self.get_busy():
             return self.currently_pause
@@ -675,12 +697,12 @@ class Audio:
 
     def set_position(self, position: Union[int, float]) -> None:
         """
-        Set the audio position where the audio will continue to play.
+        Set the audio's position where the audio will continue to play.
 
         Parameters
         ----------
 
-        position: Where to set the audio stream position in seconds.
+        position: Where to set the audio's position in seconds.
         """
         if type(position) != int and type(position) != float:
             raise TypeError("Position must be an integer/a float.")
@@ -693,12 +715,12 @@ class Audio:
 
     def get_position(self, digit: Optional[int] = 4) -> any:
         """
-        Return the current audio position in seconds if it's currently playing or pausing, `simple_pygame.AudioIsLoading` if the audio stream is loading, otherwise `simple_pygame.AudioEnded`.
+        Return the current audio position in seconds if the audio currently playing or pausing, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
 
         Parameters
         ----------
 
-        digit (optional): Number of digits to round.
+        digit (optional): Number of digits for rounding.
         """
         if digit != None and type(digit) != int:
             raise TypeError("Digit must be None/an integer.")
@@ -714,12 +736,12 @@ class Audio:
 
     def set_volume(self, volume: Union[int, float]) -> None:
         """
-        Set the audio stream volume. The volume must be an integer/a float between `0` and `2`, `1` is the original volume.
+        Set the audio's volume. The volume must be an integer/a float between `0` and `2`, `1` is the original volume.
 
         Parameters
         ----------
 
-        volume: Audio stream volume.
+        volume: The audio's volume.
         """
         if type(volume) != int and type(volume) != float:
             raise TypeError("Volume must be an integer/a float.")
@@ -731,13 +753,13 @@ class Audio:
 
     def get_volume(self) -> Union[int, float]:
         """
-        Return the audio stream volume.
+        Return the audio's volume.
         """
         return self._volume
 
     def get_busy(self) -> bool:
         """
-        Return `True` if the audio stream is currently playing or pausing, otherwise `False`.
+        Return `True` if the audio is currently playing or pausing, otherwise `False`.
         """
         if not self._audio_thread:
             return False
@@ -753,30 +775,38 @@ class Audio:
         """
         return self.exception
 
-    def audio(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
+    def audio(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, encoding: Optional[str] = None, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
-        Start the audio stream. This function is meant for use by the `Class` and not for general use.
+        Start the audio. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
 
         path: Path to the file contains audio.
 
-        loop (optional): How many times to repeat the audio. If this args is set to `-1` repeats indefinitely.
+        loop (optional): How many times to repeat the audio. If this is set to `-1` repeats indefinitely.
 
-        stream (optional): Which stream to use if the file has more than 1 audio stream. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing audio.
 
-        delay (optional): The interval between each check to determine if the audio stream has resumed when it's currently pausing in seconds.
+        frames_per_buffer (optional): Number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if this is `None`.
+
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
+
+        delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
         use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
+
+        ffmpeg_path (optional): Path to ffmpeg.
+
+        ffprobe_path (optional): Path to ffprobe.
         """
         def clean_up() -> None:
             """
-            Clean up everything before stopping the audio stream.
+            Clean up everything before stopping the audio.
             """
             try:
                 pipe.terminate()
@@ -796,15 +826,13 @@ class Audio:
             self.currently_pause = False
 
         try:
-            ffmpeg_path = self.ffmpeg_path
-            ffprobe_path = self.ffprobe_path
+            frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
             pyaudio_format = self.pyaudio_format
             ffmpeg_format = self.ffmpeg_format
             audioop_format = self.audioop_format
-            frames_per_buffer = self.frames_per_buffer
             position = 0 if self._position < 0 else self._position
 
-            pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, ffmpeg_format, use_ffmpeg, ffmpeg_path, ffprobe_path)
+            pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, ffmpeg_path, ffprobe_path)
             self.stream_information["sample_rate"] = int(self.stream_information["sample_rate"])
             self.stream_information["channels"] = int(self.stream_information["channels"])
             stream_out = self._pa.open(self.stream_information["sample_rate"], self.stream_information["channels"], pyaudio_format, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
@@ -820,7 +848,7 @@ class Audio:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
 
-                    pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, ffmpeg_format, use_ffmpeg, ffmpeg_path, ffprobe_path)
+                    pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, ffmpeg_path, ffprobe_path)
                     self._reposition = False
 
                     self._chunk_time = position if duration == None or position < self._duration else self._duration
@@ -847,13 +875,13 @@ class Audio:
                     continue
 
                 if loop == -1:
-                    pipe, self.information, self.stream_information = self.create_pipe(path, stream = stream, data_format = ffmpeg_format, use_ffmpeg = use_ffmpeg, ffmpeg_path = ffmpeg_path, ffprobe_path = ffprobe_path)
+                    pipe, self.information, self.stream_information = self.create_pipe(path, stream = stream, encoding = encoding, data_format = ffmpeg_format, use_ffmpeg = use_ffmpeg, ffmpeg_path = ffmpeg_path, ffprobe_path = ffprobe_path)
                     self._chunk_time = 0
                     self._start = time.monotonic_ns()
                 elif loop > 0:
                     loop -= 1
 
-                    pipe, self.information, self.stream_information = self.create_pipe(path, stream = stream, data_format = ffmpeg_format, use_ffmpeg = use_ffmpeg, ffmpeg_path = ffmpeg_path, ffprobe_path = ffprobe_path)
+                    pipe, self.information, self.stream_information = self.create_pipe(path, stream = stream, encoding = encoding, data_format = ffmpeg_format, use_ffmpeg = use_ffmpeg, ffmpeg_path = ffmpeg_path, ffprobe_path = ffprobe_path)
                     self._chunk_time = 0
                     self._start = time.monotonic_ns()
                 else:
