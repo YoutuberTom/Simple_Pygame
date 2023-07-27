@@ -2,68 +2,72 @@
 Simple Pygame is a Python library that provides many features using Pygame and other libraries. It can help you create multimedia programs much easier and cleaner.
 """
 import gc
+from typing import Iterable
 from .constants import __version__
 from .constants import *
 from . import mixer
 
-_init = False
+def init(modules: Iterable = []) -> tuple:
+    """
+    Import/Initialize Simple Pygame modules and return successfully imported/initialized modules.
 
-def get_init() -> bool:
-    """
-    Return `True` if Simple Pygame is currently initialized, otherwise `False`.
-    """
-    return _init
+    Parameters
+    ----------
 
-def init() -> tuple:
+    modules (optional): Specifies which modules to import/initialize. If it's empty, import/initialize all Simple Pygame modules.
     """
-    Import/Initialize all Simple Pygame modules and return successfully imported/initialized modules.
-    """
-    global _init
+    try:
+        modules_len = len(modules)
+        iter(modules)
+    except TypeError:
+        raise TypeError("Modules is not iterable.") from None
 
-    if get_init():
-        return ()
-    _init = True
-    
     successfully_imported = []
 
-    mixer_successfully_imported = mixer.init()
-    if mixer_successfully_imported:
-        successfully_imported.append(MixerModule)
-    
-    try:
-        global transform
-        from . import transform
-        successfully_imported.append(TransformModule)
-    except ImportError:
-        pass
+    if modules_len == 0 or MixerModule in modules:
+        mixer_successfully_imported = mixer.init()
+        if mixer_successfully_imported:
+            successfully_imported.append(MixerModule)
 
-    if len(successfully_imported) == 0:
-        _init = False
-    
+    if modules_len == 0 or TransformModule in modules:
+        try:
+            global transform
+            from . import transform
+            successfully_imported.append(TransformModule)
+        except ImportError:
+            pass
+
     return (*successfully_imported,)
 
-def quit() -> tuple:
+def quit(modules: Iterable = []) -> tuple:
     """
-    Quit/Uninitialize all Simple Pygame modules and return successfully quit/uninitialized modules.
-    """
-    global _init
+    Quit/Uninitialize Simple Pygame modules and return successfully quit/uninitialized modules.
 
-    if not get_init():
-        return ()
-    _init = False
+    Parameters
+    ----------
+
+    modules (optional): Specifies which modules to quit/uninitialize. If it's empty, quit/uninitialize all Simple Pygame modules.
+    """
+    try:
+        modules_len = len(modules)
+        iter(modules)
+    except TypeError:
+        raise TypeError("Modules is not iterable.") from None
 
     successfully_quit = []
 
-    mixer_successfully_quit = mixer.quit()
-    if mixer_successfully_quit:
-        successfully_quit.append(MixerModule)
+    if modules_len == 0 or MixerModule in modules:
+        mixer_successfully_quit = mixer.quit()
+        if mixer_successfully_quit:
+            successfully_quit.append(MixerModule)
 
-    try:
-        global transform
-        del transform
-        successfully_quit.append(TransformModule)
-    except NameError:
-        pass
+    if modules_len == 0 or TransformModule in modules:
+        try:
+            global transform
+            del transform
+            successfully_quit.append(TransformModule)
+        except NameError:
+            pass
 
     gc.collect()
     return (*successfully_quit,)
