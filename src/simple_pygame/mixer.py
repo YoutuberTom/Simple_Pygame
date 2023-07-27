@@ -1,59 +1,61 @@
 """
-A module for playing music.
+A module for working with audio.
 """
 import gc
-from .constants import MusicClass
+from typing import Iterable
+from .constants import AudioClass
 
-_init = False
-
-def get_init() -> bool:
-    """
-    Return `True` if the mixer module is currently initialized, otherwise `False`.
-    """
-    return _init
-
-def init() -> tuple:
+def init(classes: Iterable = []) -> tuple:
     """
     Initialize the mixer module and return successfully initialized classes.
+
+    Parameters
+    ----------
+
+    classes (optional): Specifies which classes to initialize. If it's empty, initialize all mixer module classes.
     """
-    global _init
-
-    if get_init():
-        return ()
-    _init = True
-    
-    successfully_imported = []
-
     try:
-        global Music
-        from .music import Music
-        successfully_imported.append(MusicClass)
-    except ImportError:
-        pass
+        classes_len = len(classes)
+        iter(classes)
+    except TypeError:
+        raise TypeError("Classes is not iterable.") from None
 
-    if len(successfully_imported) == 0:
-        _init = False
+    successfully_initialized = []
 
-    return (*successfully_imported,)
+    if classes_len == 0 or AudioClass in classes:
+        try:
+            global Audio
+            from .audio import Audio
+            successfully_initialized.append(AudioClass)
+        except ImportError:
+            pass
 
-def quit() -> tuple:
+    return (*successfully_initialized,)
+
+def quit(classes: Iterable = []) -> tuple:
     """
     Uninitialize the mixer module and return successfully uninitialized classes.
+
+    Parameters
+    ----------
+
+    classes (optional): Specifies which classes to uninitialize. If it's empty, uninitialize all mixer module classes.
     """
-    global _init
-
-    if not get_init:
-        return ()
-    _init = False
-
-    successfully_quit = []
-
     try:
-        global Music
-        del Music
-        successfully_quit.append(MusicClass)
-    except NameError:
-        pass
+        classes_len = len(classes)
+        iter(classes)
+    except TypeError:
+        raise TypeError("Classes is not iterable.") from None
+
+    successfully_uninitialized = []
+
+    if classes_len == 0 or AudioClass in classes:
+        try:
+            global Audio
+            del Audio
+            successfully_uninitialized.append(AudioClass)
+        except NameError:
+            pass
 
     gc.collect()
-    return (*successfully_quit,)
+    return (*successfully_uninitialized,)
