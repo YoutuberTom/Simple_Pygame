@@ -709,7 +709,7 @@ class Audio:
         if self._start == None:
             return AudioIsLoading
 
-        position = min(self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length)), self._duration)
+        position = min([self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length)), self._duration][:1 if self._duration == None else 2])
         return position if digit == None else round(position, digit)
 
     def set_volume(self, volume: Union[int, float]) -> None:
@@ -808,13 +808,14 @@ class Audio:
             self.stream_information["sample_rate"] = int(self.stream_information["sample_rate"])
             self.stream_information["channels"] = int(self.stream_information["channels"])
             stream_out = self._pa.open(self.stream_information["sample_rate"], self.stream_information["channels"], pyaudio_format, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
-            try:
-                self._duration = float(self.stream_information["duration"])
-            except KeyError:
-                self._duration = float(self.information["format"]["duration"])
+
+            duration = self.stream_information.get("duration", None)
+            if duration == None:
+                duration = self.information["format"].get("duration", None)
+            self._duration = float(duration) if duration != None else duration
 
             self._chunk_length = chunk / (audioop_format * self.stream_information["channels"] * self.stream_information["sample_rate"])
-            self._chunk_time = position if position < self._duration else self._duration
+            self._chunk_time = position if duration == None or position < self._duration else self._duration
             while not self._terminate:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
@@ -822,7 +823,7 @@ class Audio:
                     pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, ffmpeg_format, use_ffmpeg, ffmpeg_path, ffprobe_path)
                     self._reposition = False
 
-                    self._chunk_time = position if position < self._duration else self._duration
+                    self._chunk_time = position if duration == None or position < self._duration else self._duration
                     self._start = time.monotonic_ns()
 
                 if self.get_pause():
