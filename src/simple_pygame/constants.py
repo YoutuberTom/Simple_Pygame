@@ -1,8 +1,8 @@
 """
-A module that holds all the constants of the package.
+A module that holds all the constants of Simple Pygame.
 """
-MusicIsLoading = "MusicIsLoading"
-MusicEnded = "MusicEnded"
+AudioIsLoading = "AudioIsLoading"
+AudioEnded = "AudioEnded"
 
 SInt8 = "SInt8"
 SInt16 = "SInt16"
@@ -11,6 +11,6 @@ UInt8 = "UInt8"
 
 MixerModule = "MixerModule"
 TransformModule = "TransformModule"
-MusicClass = "MusicClass"
+AudioClass = "AudioClass"
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
