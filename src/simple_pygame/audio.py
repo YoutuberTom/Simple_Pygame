@@ -132,6 +132,8 @@ class Audio:
                 result = subprocess.run([ffmpeg_or_ffprobe_path, "-i", path], capture_output = True, encoding = encoding, text = True)
             except FileNotFoundError:
                 raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
+            except LookupError:
+                raise ValueError("Invalid encoding.") from None
 
             raw_data = result.stderr.split("\n")[:-1]
             if raw_data[-1] != "At least one output file must be specified":
@@ -142,7 +144,12 @@ class Audio:
             ffprobe_command = [ffmpeg_or_ffprobe_path, "-loglevel", loglevel, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path]
 
             try:
-                return json.loads(subprocess.run(ffprobe_command, capture_output = True, check = True, encoding = encoding, text = True).stdout)
+                result = subprocess.run(ffprobe_command, capture_output = True, check = True, encoding = encoding, text = True)
+
+                if result.stdout == None:
+                    raise ValueError(f"""{'Default encoding' if encoding == None else f'Encoding "{repr(encoding)[1:-1]}"'} cannot decode the byte sequence. You can try using other encodings.""")
+
+                return json.loads(result.stdout)
             except FileNotFoundError:
                 raise FileNotFoundError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
             except subprocess.CalledProcessError as error:
@@ -151,6 +158,8 @@ class Audio:
                     raise ValueError(f"""Invalid loglevel "{repr(loglevel)[1:-1]}". Possible levels are numbers or: {", ".join(matches[1:])}.""") from None
                 else:
                     raise ValueError("Invalid ffprobe path or path or data.") from None
+            except LookupError:
+                raise ValueError("Invalid encoding.")
 
     @classmethod
     def extract_information(self, raw_data: Iterable[str]) -> dict:
