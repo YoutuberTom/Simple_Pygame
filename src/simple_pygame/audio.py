@@ -15,7 +15,7 @@ from .constants import SInt8, SInt16, SInt32, UInt8, AudioIsLoading, AudioEnded
 from typing import Optional, Union, Iterable
 
 class Audio:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An audio object from a file contains audio. This class won't load the entire file.
 
@@ -33,13 +33,13 @@ class Audio:
 
         path (optional): Path to the file contains audio.
 
-        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if the given stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing audio.
 
-        frames_per_buffer (optional): Number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if this is `None`.
+        frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -56,8 +56,8 @@ class Audio:
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
 
-        if frames_per_buffer != None and type(frames_per_buffer) != int:
-            raise TypeError("Frames per buffer must be None/an integer.")
+        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and type(frames_per_buffer) != int:
+            raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
         elif type(frames_per_buffer) == int and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
@@ -73,7 +73,7 @@ class Audio:
         self.path = path
         self.stream = stream
         self.chunk = chunk
-        self.frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
+        self.frames_per_buffer = frames_per_buffer
         self.encoding = encoding
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
@@ -107,7 +107,7 @@ class Audio:
 
         path: Path to the file to get information.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
 
         use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
 
@@ -364,13 +364,13 @@ class Audio:
 
         path: Path to the file to create pipe.
 
-        position (optional): Where to set the audio position in seconds.
+        position (optional): Where to set the audio's position in seconds.
 
-        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if the given stream is invalid.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
 
-        data_format (optional): Output data format. Use format from `set_format()` function if this is `None`.
+        data_format (optional): Output data format. Use format from `set_format()` function if the given data format is `None`.
 
         use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
 
@@ -433,7 +433,7 @@ class Audio:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -442,13 +442,13 @@ class Audio:
 
         path (optional): Path to the file contains audio.
 
-        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if the given stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing audio.
 
-        frames_per_buffer (optional): Number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if this is `None`.
+        frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -465,8 +465,8 @@ class Audio:
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
 
-        if frames_per_buffer != None and type(frames_per_buffer) != int:
-            raise TypeError("Frames per buffer must be None/an integer.")
+        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and type(frames_per_buffer) != int:
+            raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
         elif type(frames_per_buffer) == int and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
@@ -482,14 +482,14 @@ class Audio:
         self.path = path
         self.stream = stream
         self.chunk = chunk
-        self.frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
+        self.frames_per_buffer
         self.encoding = encoding
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
     def set_format(self, data_format: any = SInt16) -> None:
         """
-        Set output data format. Default is `simple_pygame.SInt16`.
+        Set output data format. Defaults to `simple_pygame.SInt16`.
 
         Parameters
         ----------
@@ -528,7 +528,7 @@ class Audio:
         Parameters
         ----------
 
-        device_index: Device's index. Set output device to the default output device if this is `None`.
+        device_index: Device's index. Set output device to the default output device if the given device index is `None`.
         """
         if device_index == None:
             self._output_device_index = self.get_device_info()["index"]
@@ -552,7 +552,7 @@ class Audio:
         Parameters
         ----------
 
-        device_index: Device's index. Return the default output device's information if this is `None`.
+        device_index: Device's index. Return the default output device's information if the given device index is `None`.
         """
         if device_index == None:
             return self._pa.get_default_output_device_info()
@@ -572,7 +572,7 @@ class Audio:
         Parameters
         ----------
 
-        loop (optional): How many times to repeat the audio. If this is set to `-1` repeats indefinitely.
+        loop (optional): How many times to repeat the audio. If the given loop is `-1` repeats indefinitely.
 
         start (optional): Where the audio starts playing in seconds.
 
@@ -715,7 +715,7 @@ class Audio:
 
     def get_position(self, digit: Optional[int] = 4) -> any:
         """
-        Return the current audio position in seconds if the audio currently playing or pausing, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
+        Return the current audio's position in seconds if the audio currently playing or pausing, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
 
         Parameters
         ----------
@@ -775,7 +775,7 @@ class Audio:
         """
         return self.exception
 
-    def audio(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, frames_per_buffer: Optional[int] = None, encoding: Optional[str] = None, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def audio(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         Start the audio. This function is meant for use by the `Class` and not for general use.
 
@@ -784,15 +784,15 @@ class Audio:
 
         path: Path to the file contains audio.
 
-        loop (optional): How many times to repeat the audio. If this is set to `-1` repeats indefinitely.
+        loop (optional): How many times to repeat the audio. If the given loop is `-1` repeats indefinitely.
 
-        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if stream is invalid.
+        stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if the given stream is invalid.
 
         chunk (optional): Number of bytes per chunk when playing audio.
 
-        frames_per_buffer (optional): Number of frames per buffer. Set the value to `pyaudio.paFramesPerBufferUnspecified` if this is `None`.
+        frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if this is `None`.
+        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
 
         delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
 
@@ -826,7 +826,6 @@ class Audio:
             self.currently_pause = False
 
         try:
-            frames_per_buffer = pyaudio.paFramesPerBufferUnspecified if frames_per_buffer == None else frames_per_buffer
             pyaudio_format = self.pyaudio_format
             ffmpeg_format = self.ffmpeg_format
             audioop_format = self.audioop_format
