@@ -39,7 +39,7 @@ class Audio:
 
         frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -107,7 +107,7 @@ class Audio:
 
         path: Path to the file to get information.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
         use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
 
@@ -377,7 +377,7 @@ class Audio:
 
         stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if the given stream is invalid.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
         data_format (optional): Output data format. Use format from `set_format()` function if the given data format is `None`.
 
@@ -457,7 +457,7 @@ class Audio:
 
         frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -801,7 +801,7 @@ class Audio:
 
         frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
-        encoding (optional): Character encoding to be used for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
         delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
 
