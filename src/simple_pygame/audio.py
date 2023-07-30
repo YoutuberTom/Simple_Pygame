@@ -15,7 +15,7 @@ from .constants import SInt8, SInt16, SInt32, UInt8, AudioIsLoading, AudioEnded
 from typing import Optional, Union, Iterable
 
 class Audio:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An audio object from a file contains audio. This class won't load the entire file.
 
@@ -40,6 +40,8 @@ class Audio:
         frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+
+        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -75,6 +77,7 @@ class Audio:
         self.chunk = chunk
         self.frames_per_buffer = frames_per_buffer
         self.encoding = encoding
+        self.use_ffmpeg = use_ffmpeg
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
         self.currently_pause = False
@@ -442,7 +445,7 @@ class Audio:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -458,6 +461,8 @@ class Audio:
         frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+
+        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
 
         ffmpeg_path (optional): Path to ffmpeg.
 
@@ -493,6 +498,7 @@ class Audio:
         self.chunk = chunk
         self.frames_per_buffer
         self.encoding = encoding
+        self.use_ffmpeg = use_ffmpeg
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
@@ -574,7 +580,7 @@ class Audio:
     
         return self._pa.get_device_info_by_index(device_index)
 
-    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False) -> None:
+    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
         """
         Start the audio. If the audio is currently playing it will be restarted.
 
@@ -588,8 +594,6 @@ class Audio:
         delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
-
-        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
         """
         self.stop()
 
@@ -626,7 +630,7 @@ class Audio:
         self._chunk_time = None
         self._chunk_length = None
 
-        self._audio_thread = threading.Thread(target = self.audio, args = (self.path, loop, self.stream, self.chunk, self.frames_per_buffer, self.encoding, delay, exception_on_underflow, use_ffmpeg, self.ffmpeg_path, self.ffprobe_path))
+        self._audio_thread = threading.Thread(target = self.audio, args = (self.path, loop, self.stream, self.chunk, self.frames_per_buffer, self.encoding, delay, exception_on_underflow, self.use_ffmpeg, self.ffmpeg_path, self.ffprobe_path))
         self._audio_thread.daemon = True
         self._audio_thread.start()
 
