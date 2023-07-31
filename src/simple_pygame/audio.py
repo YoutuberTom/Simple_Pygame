@@ -133,6 +133,9 @@ class Audio:
             except LookupError:
                 raise ValueError("Invalid encoding.") from None
 
+            if result.stderr == None:
+                raise ValueError(f"""{'Default encoding' if encoding == None else f'Encoding "{repr(encoding)[1:-1]}"'} cannot decode the byte sequence. You can try using other encodings.""")
+
             raw_data = result.stderr.split("\n")[:-1]
             if raw_data[-1] != "At least one output file must be specified":
                 raise RuntimeError(raw_data[-1])
@@ -179,9 +182,7 @@ class Audio:
         data["chapters"] = []
 
         metadata = None
-        program_index = -1
-        stream_index = -1
-        chapter_index = -1
+        program_index, stream_index, chapter_index = -1, -1, -1
         for information in raw_data:
             if type(information) != str:
                 raise TypeError("Raw data must contain only strings.")
@@ -417,7 +418,7 @@ class Audio:
         for data in streams:
             if data["codec_type"] == "audio":
                 audio_streams.append(data)
-        
+
         if len(audio_streams) == 0:
             raise ValueError("The file doesn't contain audio.")
         elif stream < 0 or stream >= len(audio_streams):
@@ -558,13 +559,13 @@ class Audio:
         """
         if device_index == None:
             return self._pa.get_default_output_device_info()
-        
+
         if type(device_index) != int:
             raise TypeError("The device's index must be an integer.")
-        
+
         if device_index < 0 or device_index > self.get_device_count() - 1:
             raise ValueError("Invalid index.")
-    
+
         return self._pa.get_device_info_by_index(device_index)
 
     def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
@@ -818,14 +819,11 @@ class Audio:
             self.currently_pause = False
 
         try:
-            pyaudio_format = self.pyaudio_format
-            ffmpeg_format = self.ffmpeg_format
-            audioop_format = self.audioop_format
+            pyaudio_format, ffmpeg_format, audioop_format = self.pyaudio_format, self.ffmpeg_format, self.audioop_format
             position = 0 if self._position < 0 else self._position
 
             pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, ffmpeg_path, ffprobe_path)
-            self.stream_information["sample_rate"] = int(self.stream_information["sample_rate"])
-            self.stream_information["channels"] = int(self.stream_information["channels"])
+            self.stream_information["sample_rate"], self.stream_information["channels"] = int(self.stream_information["sample_rate"]), int(self.stream_information["channels"])
             stream_out = self._pa.open(self.stream_information["sample_rate"], self.stream_information["channels"], pyaudio_format, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
 
             duration = self.stream_information.get("duration", None)
