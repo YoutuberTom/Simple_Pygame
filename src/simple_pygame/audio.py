@@ -41,11 +41,11 @@ class Audio:
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
-        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
+        use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
-        ffmpeg_path (optional): Path to ffmpeg.
+        ffmpeg_path (optional): Path to `ffmpeg`.
 
-        ffprobe_path (optional): Path to ffprobe.
+        ffprobe_path (optional): Path to `ffprobe`.
         """
         if path != None and type(path) != str:
             raise TypeError("Path must be None/a string.")
@@ -101,7 +101,7 @@ class Audio:
         self.set_format()
 
     @classmethod
-    def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_or_ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> dict:
+    def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> dict:
         """
         Return a dict contains all the file's information.
 
@@ -112,11 +112,9 @@ class Audio:
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
-        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
+        use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
-        ffmpeg_or_ffprobe_path (optional): Path to ffmpeg or ffprobe.
-
-        loglevel (optional): Logging level and flags used by ffprobe.
+        executable_path (optional): Path to `ffmpeg` or `ffprobe` depends on the value of `use_ffmpeg`.
         """
         if type(path) != str:
             raise TypeError("Path must be a string.")
@@ -124,15 +122,12 @@ class Audio:
         if encoding != None and type(encoding) != str:
             raise TypeError("Encoding must be None/a string.")
 
-        if type(ffmpeg_or_ffprobe_path) != str:
+        if type(executable_path) != str:
             raise TypeError("FFmpeg/FFprobe path must be a string.")
-
-        if type(loglevel) != str:
-            raise TypeError("Loglevel must be a string.")
 
         if use_ffmpeg:
             try:
-                result = subprocess.run([ffmpeg_or_ffprobe_path, "-i", path], capture_output = True, encoding = encoding, text = True)
+                result = subprocess.run([executable_path, "-i", path], capture_output = True, encoding = encoding, text = True)
             except FileNotFoundError:
                 raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
             except LookupError:
@@ -144,10 +139,8 @@ class Audio:
 
             return self.extract_information(raw_data)
         else:
-            ffprobe_command = [ffmpeg_or_ffprobe_path, "-loglevel", loglevel, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path]
-
             try:
-                result = subprocess.run(ffprobe_command, capture_output = True, check = True, encoding = encoding, text = True)
+                result = subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], capture_output = True, check = True, encoding = encoding, text = True)
 
                 if result.stdout == None:
                     raise ValueError(f"""{'Default encoding' if encoding == None else f'Encoding "{repr(encoding)[1:-1]}"'} cannot decode the byte sequence. You can try using other encodings.""")
@@ -155,24 +148,20 @@ class Audio:
                 return json.loads(result.stdout)
             except FileNotFoundError:
                 raise FileNotFoundError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
-            except subprocess.CalledProcessError as error:
-                if f"""Invalid loglevel "{loglevel}". Possible levels are numbers or:""" in error.stderr:
-                    matches = re.findall(r"""\".*?\"""", error.stderr)
-                    raise ValueError(f"""Invalid loglevel "{repr(loglevel)[1:-1]}". Possible levels are numbers or: {", ".join(matches[1:])}.""") from None
-                else:
-                    raise ValueError("Invalid ffprobe path or path or data.") from None
+            except subprocess.CalledProcessError:
+                raise ValueError("Invalid ffprobe path or path or data.") from None
             except LookupError:
                 raise ValueError("Invalid encoding.")
 
     @classmethod
     def extract_information(self, raw_data: Iterable[str]) -> dict:
         """
-        Return a dict contains the file's processed information. This function is meant for use by the `Class` and not for general use.
+        Return a dict contains all the file's information.
 
         Parameters
         ----------
 
-        raw_data: An iterable object contains the file's raw information from ffmpeg.
+        raw_data: An iterable object contains the file's raw information from `ffmpeg`.
         """
         try:
             if len(raw_data) == 0:
@@ -369,7 +358,7 @@ class Audio:
     @classmethod
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> tuple:
         """
-        Return a pipe contains ffmpeg's output, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
+        Return a pipe contains `ffmpeg`'s output, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -382,15 +371,15 @@ class Audio:
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
-        data_format (optional): Output data format. Use format from `set_format()` function if the given data format is `None`.
+        data_format (optional): Output data format. Use format from `set_format` function if the given data format is `None`.
 
-        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
+        use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
-        ffmpeg_path (optional): Path to ffmpeg.
+        ffmpeg_path (optional): Path to `ffmpeg`.
 
-        ffprobe_path (optional): Path to ffprobe.
+        ffprobe_path (optional): Path to `ffprobe`.
 
-        loglevel (optional): Logging level and flags used by ffmpeg and ffprobe.
+        loglevel (optional): Logging level and flags used by `ffmpeg`.
         """
         if type(path) != str:
             raise TypeError("Path must be a string.")
@@ -421,7 +410,7 @@ class Audio:
         if type(loglevel) != str:
             raise TypeError("Loglevel must be a string.")
 
-        information = self.get_information(path, encoding, use_ffmpeg, ffmpeg_path if use_ffmpeg else ffprobe_path, loglevel)
+        information = self.get_information(path, encoding, use_ffmpeg, ffmpeg_path if use_ffmpeg else ffprobe_path)
         streams = information["streams"]
 
         audio_streams = []
@@ -434,14 +423,12 @@ class Audio:
         elif stream < 0 or stream >= len(audio_streams):
             stream = 0
 
-        ffmpeg_command = [ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"]
-
         creationflags = 0
         if platform.system() == "Windows":
             creationflags = subprocess.CREATE_NO_WINDOW
 
         try:
-            return subprocess.Popen(ffmpeg_command, stdout = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
+            return subprocess.Popen([ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"], stdout = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
@@ -462,11 +449,11 @@ class Audio:
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
-        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
+        use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
-        ffmpeg_path (optional): Path to ffmpeg.
+        ffmpeg_path (optional): Path to `ffmpeg`.
 
-        ffprobe_path (optional): Path to ffprobe.
+        ffprobe_path (optional): Path to `ffprobe`.
         """
         if path != None and type(path) != str:
             raise TypeError("Path must be None/a string.")
@@ -621,10 +608,7 @@ class Audio:
         self._reposition = False
         self._terminate = False
 
-        if start < 0:
-            self._position = 0
-        else:
-            self._position = start
+        self._position = 0 if start < 0 else start
         self._pause_offset = None
         self._duration = None
         self._chunk_time = None
@@ -636,7 +620,7 @@ class Audio:
 
     def pause(self) -> None:
         """
-        Pause the audio if it's currently playing and not pausing. It can be resumed with `resume()` function.
+        Pause the audio if it's currently playing and not pausing. It can be resumed with `resume` function.
         """
         if self.get_busy() and not self.get_pause():
             self.currently_pause = True
@@ -645,12 +629,13 @@ class Audio:
         """
         Resume the audio after it has been paused.
         """
-        if self.get_busy() and self.get_pause():
-            self.currently_pause = False
+        if not self.get_busy() or not self.get_pause():
+            return
+        self.currently_pause = False
 
-            if self._pause_offset != None:
-                self._start = time.monotonic_ns() - self.seconds_to_nanoseconds(self._pause_offset)
-            self._pause_offset = None
+        if self._pause_offset != None:
+            self._start = time.monotonic_ns() - self.seconds_to_nanoseconds(self._pause_offset)
+        self._pause_offset = None
 
     def stop(self, delay: Union[int, float] = 0.1) -> None:
         """
@@ -666,12 +651,12 @@ class Audio:
         elif delay < 0:
             raise ValueError("Delay must be non-negative.")
 
-        if self.get_busy():
-            self._terminate = True
+        if not self.get_busy():
+            return
 
-            while self.get_busy():
-                time.sleep(delay)
-
+        self._terminate = True
+        while self.get_busy():
+            time.sleep(delay)
         self._audio_thread = None
 
     def join(self, delay: Union[int, float] = 0.1, raise_exception: bool = True) -> None:
@@ -699,14 +684,12 @@ class Audio:
         exception = self.get_exception()
         if exception:
             raise exception
-    
+
     def get_pause(self) -> bool:
         """
         Return `True` if the audio is currently pausing, otherwise `False`.
         """
-        if self.get_busy():
-            return self.currently_pause
-        return False
+        return self.currently_pause if self.get_busy() else False
 
     def set_position(self, position: Union[int, float]) -> None:
         """
@@ -777,10 +760,7 @@ class Audio:
         if not self._audio_thread:
             return False
 
-        if self._audio_thread.is_alive():
-            return True
-        else:
-            return False
+        return self._audio_thread.is_alive()
 
     def get_exception(self) -> Optional[Exception]:
         """
@@ -811,11 +791,11 @@ class Audio:
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
-        use_ffmpeg (optional): Specifies whether to use ffmpeg or ffprobe to get the file's information.
+        use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
-        ffmpeg_path (optional): Path to ffmpeg.
+        ffmpeg_path (optional): Path to `ffmpeg`.
 
-        ffprobe_path (optional): Path to ffprobe.
+        ffprobe_path (optional): Path to `ffprobe`.
         """
         def clean_up() -> None:
             """
@@ -825,12 +805,11 @@ class Audio:
                 pipe.terminate()
             except NameError:
                 pass
-
             try:
-                stream_out.stop_stream()
+                if stream_out.is_active():
+                    stream_out.stop_stream()
             except (NameError, OSError):
                 pass
-
             try:
                 stream_out.close()
             except NameError:
@@ -868,7 +847,7 @@ class Audio:
 
                 if self.get_pause():
                     if self._pause_offset == None:
-                        self._pause_offset = min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length)
+                        self._pause_offset = min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length) if self._start != None else 0
 
                     time.sleep(delay)
                     continue
@@ -898,8 +877,8 @@ class Audio:
                     self._start = time.monotonic_ns()
                 else:
                     break
-        except Exception as error:
-            self.exception = error
+        except Exception as exception:
+            self.exception = exception
         finally:
             clean_up()
 
@@ -918,7 +897,7 @@ class Audio:
     @classmethod
     def nanoseconds_to_seconds(self, time: Union[int, float]) -> Union[int, float]:
         """
-        Convert nanoseconds to seconds. It's meant for use by the `Class` and not for general use.
+        Convert nanoseconds to seconds.
 
         Parameters
         ----------
@@ -935,7 +914,7 @@ class Audio:
     @classmethod
     def seconds_to_nanoseconds(self, time: Union[int, float]) -> Union[int, float]:
         """
-        Convert seconds to nanoseconds. It's meant for use by the `Class` and not for general use.
+        Convert seconds to nanoseconds.
 
         Parameters
         ----------
