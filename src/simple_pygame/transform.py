@@ -10,9 +10,9 @@ import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = ""
 
 import pygame
-from typing import Union, Optional
+from typing import Union, Optional, Tuple, List
 
-def fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect: Optional[pygame.Rect] = None, special_flags: int = 0) -> pygame.Surface:
+def fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List], rect: Optional[Union[pygame.Rect, Tuple[int, int, int, int], List[int]]] = None, special_flags: int = 0) -> pygame.Surface:
     """
     Fill the given Surface with a solid color. If the Rect argument is given then only the area inside the specified Rect will be filled, otherwise the entire Surface will be filled.
 
@@ -48,7 +48,7 @@ def fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect:
     surface.fill(color, rect, special_flags)
     return rect
 
-def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, tuple, list], rect: pygame.Rect, special_flags: int = 0) -> pygame.Surface:
+def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List], rect: Union[pygame.Rect, Tuple[int, int, int, int], List[int]], special_flags: int = 0) -> pygame.Surface:
     """
     Fill the area outside the specified Rect on the given Surface with a solid color.
 
