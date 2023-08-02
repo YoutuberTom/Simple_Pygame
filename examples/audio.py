@@ -16,5 +16,5 @@ if __name__ == "__main__":
     audio = simple_pygame.mixer.Audio(file_path)
     audio.play()
     audio.join()
-    
+
     simple_pygame.mixer.quit([simple_pygame.AudioClass])
