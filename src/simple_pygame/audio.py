@@ -12,10 +12,10 @@ Requirements
 """
 import pyaudio, audioop, subprocess, threading, time, json, re, platform, sys
 from .constants import SInt8, SInt16, SInt32, UInt8, AudioIsLoading, AudioEnded
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Iterable, Tuple, Dict, Any
 
 class Audio:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An audio object from a file contains audio. This class won't load the entire file.
 
@@ -101,7 +101,7 @@ class Audio:
         self.set_format()
 
     @classmethod
-    def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> dict:
+    def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> Dict[str, Any]:
         """
         Return a dict contains all the file's information.
 
@@ -157,7 +157,7 @@ class Audio:
                 raise ValueError("Invalid encoding.")
 
     @classmethod
-    def extract_information(self, raw_data: Iterable[str]) -> dict:
+    def extract_information(self, raw_data: Iterable[str]) -> Dict[str, Any]:
         """
         Return a dict contains all the file's information.
 
@@ -357,7 +357,7 @@ class Audio:
         return data
 
     @classmethod
-    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> tuple:
+    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
         Return a pipe contains `ffmpeg`'s output, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
 
@@ -433,7 +433,7 @@ class Audio:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -490,7 +490,7 @@ class Audio:
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
-    def set_format(self, data_format: any = SInt16) -> None:
+    def set_format(self, data_format: Any = SInt16) -> None:
         """
         Set output data format. Defaults to `simple_pygame.SInt16`.
 
@@ -548,7 +548,7 @@ class Audio:
 
         self._output_device_index = device_index
 
-    def get_device_info(self, device_index: Optional[int] = None) -> dict:
+    def get_device_info(self, device_index: Optional[int] = None) -> Dict[str, Any]:
         """
         Return device's information.
 
@@ -681,10 +681,7 @@ class Audio:
 
         if not raise_exception:
             return
-
-        exception = self.get_exception()
-        if exception:
-            raise exception
+        self.get_exception()
 
     def get_pause(self) -> bool:
         """
@@ -710,7 +707,7 @@ class Audio:
         else:
             self.play(start = position)
 
-    def get_position(self, digit: Optional[int] = 4) -> any:
+    def get_position(self, digit: Optional[int] = 4) -> Any:
         """
         Return the current audio's position in seconds if the audio currently playing or pausing, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
 
@@ -763,13 +760,14 @@ class Audio:
 
         return self._audio_thread.is_alive()
 
-    def get_exception(self) -> Optional[Exception]:
+    def get_exception(self) -> None:
         """
-        Return `None` if no exception is found, otherwise the exception.
+        If an exception is found then raise it, otherwise do nothing.
         """
-        return self.exception
+        if self.exception:
+            raise self.exception
 
-    def audio(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def audio(self, path: str, loop: int = 0, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         Start the audio. This function is meant for use by the `Class` and not for general use.
 
@@ -881,7 +879,7 @@ class Audio:
             clean_up()
 
     @classmethod
-    def enquote(self, value: any) -> any:
+    def enquote(self, value: Any) -> Any:
         """
         Add single quotation marks at the start and end of a string, while leaving other types unchanged.
 
