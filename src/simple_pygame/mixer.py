@@ -2,10 +2,10 @@
 A module for working with audio.
 """
 import gc
-from typing import Iterable
+from typing import Iterable, Tuple
 from .constants import AudioClass
 
-def init(classes: Iterable = []) -> tuple:
+def init(classes: Iterable = []) -> Tuple[str, ...]:
     """
     Initialize the mixer module and return successfully initialized classes.
 
@@ -32,7 +32,7 @@ def init(classes: Iterable = []) -> tuple:
 
     return (*successfully_initialized,)
 
-def quit(classes: Iterable = []) -> tuple:
+def quit(classes: Iterable = []) -> Tuple[str, ...]:
     """
     Uninitialize the mixer module and return successfully uninitialized classes.
 
