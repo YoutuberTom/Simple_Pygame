@@ -359,7 +359,7 @@ class Audio:
     @classmethod
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, use_ffmpeg: bool = False, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", loglevel: str = "quiet") -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
-        Return a pipe contains `ffmpeg`'s output, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
+        Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
 
         Parameters
         ----------
@@ -372,7 +372,7 @@ class Audio:
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
-        data_format (optional): Output data format. Use format from `set_format` function if the given data format is `None`.
+        data_format (optional): Output data format for `ffmpeg`. Use the format from the previous `set_format` function call if the given data format is `None`.
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
@@ -400,7 +400,7 @@ class Audio:
             try:
                 data_format = self.ffmpeg_format
             except AttributeError:
-                raise ValueError("The output data format must be specified.") from None
+                raise ValueError("Output data format must be specified.") from None
 
         if type(ffmpeg_path) != str:
             raise TypeError("FFmpeg path must be a string.")
@@ -429,7 +429,7 @@ class Audio:
             creationflags = subprocess.CREATE_NO_WINDOW
 
         try:
-            return subprocess.Popen([ffmpeg_path, "-nostdin", "-loglevel", loglevel, "-accurate_seek", "-ss", str(position), "-vn", "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"], stdout = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
+            return subprocess.Popen([ffmpeg_path, "-nostdin", "-accurate_seek", "-vn", "-loglevel", loglevel, "-ss", str(position), "-i", path, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"], stdout = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
@@ -796,26 +796,6 @@ class Audio:
 
         ffprobe_path (optional): Path to `ffprobe`.
         """
-        def clean_up() -> None:
-            """
-            Clean up everything before stopping the audio.
-            """
-            try:
-                pipe.terminate()
-            except NameError:
-                pass
-            try:
-                if stream_out.is_active():
-                    stream_out.stop_stream()
-            except (NameError, OSError):
-                pass
-            try:
-                stream_out.close()
-            except NameError:
-                pass
-
-            self.currently_pause = False
-
         try:
             pyaudio_format, ffmpeg_format, audioop_format = self.pyaudio_format, self.ffmpeg_format, self.audioop_format
             position = 0 if self._position < 0 else self._position
@@ -876,7 +856,21 @@ class Audio:
         except Exception as exception:
             self.exception = exception
         finally:
-            clean_up()
+            try:
+                pipe.terminate()
+            except NameError:
+                pass
+            try:
+                if stream_out.is_active():
+                    stream_out.stop_stream()
+            except (NameError, OSError):
+                pass
+            try:
+                stream_out.close()
+            except NameError:
+                pass
+
+            self.currently_pause = False
 
     @classmethod
     def enquote(self, value: Any) -> Any:
