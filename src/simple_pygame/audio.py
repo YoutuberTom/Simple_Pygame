@@ -86,7 +86,7 @@ class Audio:
         self.loglevel = loglevel
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
-        self.input_options = ["-nostdin", "-accurate_seek", "-vn"]
+        self.input_options = ["-nostdin", "-accurate_seek"]
         self.output_options = []
         self.currently_pause = False
         self.exception = None
