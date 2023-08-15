@@ -14,3 +14,5 @@ TransformModule = "TransformModule"
 AudioClass = "AudioClass"
 
 __version__ = "0.0.7"
+
+__all__ = ["AudioIsLoading", "AudioEnded", "SInt8", "SInt16", "SInt32", "UInt8", "MixerModule", "TransformModule", "AudioClass", "__version__"]
