@@ -3,7 +3,6 @@ Simple Pygame is a Python library that provides many features using Pygame and o
 """
 import gc
 from typing import Iterable, Tuple
-from .constants import __version__
 from .constants import *
 from . import mixer
 
