@@ -11,11 +11,11 @@ Requirements
 - FFprobe (optional).
 """
 import pyaudio, audioop, subprocess, threading, time, json, re, platform, sys
-from .constants import SInt8, SInt16, SInt32, UInt8, AudioIsLoading, AudioEnded
+from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, AudioIsLoading, AudioEnded
 from typing import Optional, Union, Iterable, Tuple, Dict, Any
 
 class Audio:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An audio object from a file contains audio. This class won't load the entire file.
 
@@ -38,6 +38,8 @@ class Audio:
         chunk (optional): Number of bytes per chunk when playing audio.
 
         frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
+
+        data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
@@ -65,6 +67,9 @@ class Audio:
         elif type(frames_per_buffer) == int and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
+        if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
+            raise ValueError("Invalid data format.")
+
         if encoding != None and type(encoding) != str:
             raise TypeError("Encoding must be None/a string.")
 
@@ -81,6 +86,7 @@ class Audio:
         self.stream = stream
         self.chunk = chunk
         self.frames_per_buffer = frames_per_buffer
+        self.set_format(data_format)
         self.encoding = encoding
         self.use_ffmpeg = use_ffmpeg
         self.loglevel = loglevel
@@ -106,7 +112,6 @@ class Audio:
         self._volume = 1.0
 
         self._pa = pyaudio.PyAudio()
-        self.set_format()
 
     @classmethod
     def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> Dict[str, Any]:
@@ -266,13 +271,13 @@ class Audio:
                             matches_len = len(matches)
 
                             if matches_len == 1:
-                                data[metadata][stream_index]["color_range" if matches[0] in ["tv", "pc"] else "field_order"] = matches[0]
+                                data[metadata][stream_index]["color_range" if matches[0] in ("tv", "pc") else "field_order"] = matches[0]
                                 continue
                             data[metadata][stream_index]["color_range"] = matches[0]
 
                             colors = matches[1].split("/")
                             if len(colors) == 1:
-                                data[metadata][stream_index].update({key: colors[0] for key in ["color_space", "color_primaries", "color_transfer"]})
+                                data[metadata][stream_index].update({key: colors[0] for key in ("color_space", "color_primaries", "color_transfer")})
                             else:
                                 data[metadata][stream_index].update({"color_space": colors[0]} if colors[0] != "unknown" else {})
                                 data[metadata][stream_index].update({"color_primaries": colors[1]} if colors[1] != "unknown" else {})
@@ -313,7 +318,7 @@ class Audio:
                         elif index == 2:
                             data[metadata][stream_index]["channel_layout"] = small_information
                             channels = {"mono": 1, "stereo": 2}.get(small_information, None)
-                            data[metadata][stream_index]["channels"] = channels if channels else sum([int(number) for number in small_information.split(".")])
+                            data[metadata][stream_index]["channels"] = channels if channels else sum((int(number) for number in small_information.split(".")))
                         elif index == 3:
                             data[metadata][stream_index]["sample_fmt"] = small_information
             elif information[:7] == "Chapter":
@@ -331,7 +336,7 @@ class Audio:
                 found_match = re.search(r"Duration: (.*), start: (.*), bitrate: (.*)$", information)
                 if found_match:
                     if found_match.group(1) != "N/A":
-                        data["format"]["duration"] = sum([float(value) * (60 ** (2 - index)) for index, value in enumerate(found_match.group(1).split(":"))])
+                        data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(found_match.group(1).split(":"))))
                     data["format"]["start_time"] = float(found_match.group(2))
                     if found_match.group(3) != "N/A":
                         data["format"]["bit_rate"] = int(re.search(r"(\d+)", found_match.group(3)).group(1)) * 1000
@@ -341,7 +346,7 @@ class Audio:
                 found_match = re.search(r"Duration: (.*), bitrate: (.*)$", information)
                 if found_match:
                     if found_match.group(1) != "N/A":
-                        data["format"]["duration"] = sum([float(value) * (60 ** (2 - index)) for index, value in enumerate(found_match.group(1).split(":"))])
+                        data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(found_match.group(1).split(":"))))
                     if found_match.group(2) != "N/A":
                         data["format"]["bit_rate"] = int(re.search(r"(\d+)", found_match.group(2)).group(1)) * 1000
 
@@ -357,7 +362,7 @@ class Audio:
         if len(data["format"]["tags"]) == 0:
             del data["format"]["tags"]
 
-        for key, index in [("programs", program_index), ("streams", stream_index), ("chapters", chapter_index)]:
+        for key, index in (("programs", program_index), ("streams", stream_index), ("chapters", chapter_index)):
             for sub_index in range(index + 1):
                 if len(data[key][sub_index]["tags"]) == 0:
                     del data[key][sub_index]["tags"]
@@ -430,7 +435,7 @@ class Audio:
                 raise ValueError("Input options must be specified.") from None
 
         try:
-            if any([type(value) != str for value in iter(input_options)]):
+            if any((type(value) != str for value in iter(input_options))):
                 raise ValueError("Input options must contain only strings.")
         except TypeError:
             raise TypeError("Input options is not iterable.") from None
@@ -442,7 +447,7 @@ class Audio:
                 raise ValueError("Output options must be specified.") from None
 
         try:
-            if any([type(value) != str for value in iter(output_options)]):
+            if any((type(value) != str for value in iter(output_options))):
                 raise ValueError("Output options must contain only strings.")
         except TypeError:
             raise TypeError("Output options is not iterable.") from None
@@ -469,7 +474,7 @@ class Audio:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -483,6 +488,8 @@ class Audio:
         chunk (optional): Number of bytes per chunk when playing audio.
 
         frames_per_buffer (optional): Number of frames per buffer. Defaults to `pyaudio.paFramesPerBufferUnspecified`.
+
+        data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
@@ -510,6 +517,9 @@ class Audio:
         elif type(frames_per_buffer) == int and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
+        if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
+            raise ValueError("Invalid data format.")
+
         if encoding != None and type(encoding) != str:
             raise TypeError("Encoding must be None/a string.")
 
@@ -526,6 +536,7 @@ class Audio:
         self.stream = stream
         self.chunk = chunk
         self.frames_per_buffer
+        self.set_format(data_format)
         self.encoding = encoding
         self.use_ffmpeg = use_ffmpeg
         self.loglevel = loglevel
@@ -534,12 +545,12 @@ class Audio:
 
     def set_format(self, data_format: Any = SInt16) -> None:
         """
-        Set output data format. Defaults to `simple_pygame.SInt16`.
+        Set output data format.
 
         Parameters
         ----------
 
-        data_format (optional): Specifies what format to use.
+        data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
         """
         if data_format == SInt8:
             self.pyaudio_format = pyaudio.paInt8
@@ -549,6 +560,10 @@ class Audio:
             self.pyaudio_format = pyaudio.paInt16
             self.ffmpeg_format = "s16le" if sys.byteorder == "little" else "s16be"
             self.audioop_format = 2
+        elif data_format == SInt24:
+            self.pyaudio_format = pyaudio.paInt24
+            self.ffmpeg_format = "s24le" if sys.byteorder == "little" else "s24be"
+            self.audioop_format = 3
         elif data_format == SInt32:
             self.pyaudio_format = pyaudio.paInt32
             self.ffmpeg_format = "s32le" if sys.byteorder == "little" else "s32be"
@@ -558,7 +573,10 @@ class Audio:
             self.ffmpeg_format = "u8"
             self.audioop_format = 1
         else:
-            raise ValueError("Invalid format.")
+            raise ValueError("Invalid data format.")
+
+        if self.chunk % self.audioop_format != 0:
+            raise ValueError(f"The sample width of the format ({self.audioop_format}) should be evenly divisible by {self.chunk}.")
 
     def get_device_count(self) -> int:
         """
@@ -609,6 +627,32 @@ class Audio:
             raise ValueError("Invalid index.")
 
         return self._pa.get_device_info_by_index(device_index)
+
+    @property
+    def chunk(self) -> int:
+        """
+        Number of bytes per chunk when playing audio.
+        """
+        return self._chunk
+
+    @chunk.setter
+    def chunk(self, value: int) -> None:
+        if type(value) != int:
+            raise TypeError("Chunk must be an integer.")
+        elif value <= 0:
+            raise ValueError("Chunk must be greater than 0.")
+
+        try:
+            if value % self.audioop_format != 0:
+                raise ValueError(f"The sample width of the format ({self.audioop_format}) should be evenly divisible by {value}.")
+        except AttributeError:
+            pass
+
+        self._chunk = value
+
+    @chunk.deleter
+    def chunk(self) -> None:
+        del self._chunk
 
     def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
         """
