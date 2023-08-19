@@ -14,16 +14,16 @@ Simple Pygame is a [Python](https://www.python.org/) library that provides many 
 
 ## Python libraries:
 
-| Library | Version |
-|:--------|:--------|
-|pygame   |>= 1.9.4 |
-|pyaudio  |>= 0.2.12|
+|                        Library                        | Version |
+|:------------------------------------------------------|:--------|
+|[pygame](https://www.pygame.org/news)                  |>= 1.9.4 |
+|[pyaudio](https://people.csail.mit.edu/hubert/pyaudio/)|>= 0.2.12|
 
-## Other requirements:
+## Other dependencies:
 
-- ffmpeg.
+- [ffmpeg](https://ffmpeg.org/).
 
-- ffprobe (optional).
+- [ffprobe](https://ffmpeg.org/ffprobe.html) (optional).
 
 # **Example:**
 
@@ -31,4 +31,4 @@ Go to [examples folder](https://github.com/YoutuberTom/Simple_Pygame/tree/main/e
 
 # **License:**
 
-This library is distributed under [MIT license](https://github.com/YoutuberTom/Simple_Pygame/blob/main/LICENSE).
+This library is distributed under the [MIT License](https://github.com/YoutuberTom/Simple_Pygame/blob/main/LICENSE).
