@@ -394,7 +394,7 @@ class Audio:
     @classmethod
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
-        Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
+        Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the class and not for general use.
 
         Parameters
         ----------
@@ -645,9 +645,9 @@ class Audio:
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
-        information (optional): The file's information. Use the information returned by `create_pipe` function if the given information is `None`.
+        information (optional): The file's information. Use the information returned by the `create_pipe` function if the given information is `None`.
 
-        stream_information (optional): The stream's information. Use the stream information returned by `create_pipe` function if the given stream information is `None`.
+        stream_information (optional): The stream's information. Use the stream information returned by the `create_pipe` function if the given stream information is `None`.
         """
         self.stop()
 
@@ -696,7 +696,7 @@ class Audio:
 
     def pause(self) -> None:
         """
-        Pause the audio if it's currently playing and not pausing. It can be resumed with `resume` function.
+        Pause the audio if it's currently playing and not pausing. It can be resumed with the `resume` function.
         """
         if self.get_busy() and not self.get_pause():
             self.currently_pause = True
@@ -844,7 +844,7 @@ class Audio:
 
     def audio(self, path: str, loop: int = 0, stream: int = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
         """
-        Start the audio. This function is meant for use by the `Class` and not for general use.
+        Start the audio. This function is meant for use by the class and not for general use.
 
         Parameters
         ----------
@@ -982,9 +982,21 @@ class Audio:
 
         return time * 1000000000
 
+    def __enter__(self) -> "Audio":
+        """
+        Return this instance of the `Audio` class.
+        """
+        return self
+
+    def __exit__(self, *args) -> None:
+        """
+        Clean up everything before exiting.
+        """
+        self.__del__()
+
     def __del__(self) -> None:
         """
-        Clean up everything before deleting the class.
+        Clean up everything before deleting this instance of the `Audio` class.
         """
         try:
             self.stop()
