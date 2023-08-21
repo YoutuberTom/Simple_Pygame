@@ -949,18 +949,6 @@ class Audio:
             self.currently_pause = False
 
     @classmethod
-    def enquote(self, value: Any) -> Any:
-        """
-        Add single quotation marks at the start and end of a string, while leaving other types unchanged.
-
-        Parameters
-        ----------
-
-        value: Any value.
-        """
-        return f"'{value}'" if type(value) == str else value
-
-    @classmethod
     def nanoseconds_to_seconds(self, time: Union[int, float]) -> Union[int, float]:
         """
         Convert nanoseconds to seconds.
@@ -993,18 +981,6 @@ class Audio:
             raise ValueError("Time must be non-negative.")
 
         return time * 1000000000
-
-    def __str__(self) -> str:
-        """
-        Return a string which contains the object's information.
-        """
-        return f"<Audio(path={self.enquote(repr(self.path)[1:-1] if type(self.path) == str else self.path)}, stream={self.enquote(repr(self.stream)[1:-1] if type(self.stream) == str else self.stream)}, chunk={self.enquote(repr(self.chunk)[1:-1] if type(self.chunk) == str else self.chunk)}, frames_per_buffer={self.enquote(repr(self.frames_per_buffer)[1:-1] if type(self.frames_per_buffer) == str else self.frames_per_buffer)}, ffmpeg_path={self.enquote(repr(self.ffmpeg_path)[1:-1] if type(self.ffmpeg_path) == str else self.ffmpeg_path)}, ffprobe_path={self.enquote(repr(self.ffprobe_path)[1:-1] if type(self.ffprobe_path) == str else self.ffprobe_path)})>"
-
-    def __repr__(self) -> str:
-        """
-        Return a string which contains the object's information.
-        """
-        return self.__str__()
 
     def __del__(self) -> None:
         """
