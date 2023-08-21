@@ -552,31 +552,16 @@ class Audio:
 
         data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
         """
-        if data_format == SInt8:
-            self.pyaudio_format = pyaudio.paInt8
-            self.ffmpeg_format = "s8"
-            self.audioop_format = 1
-        elif data_format == SInt16:
-            self.pyaudio_format = pyaudio.paInt16
-            self.ffmpeg_format = "s16le" if sys.byteorder == "little" else "s16be"
-            self.audioop_format = 2
-        elif data_format == SInt24:
-            self.pyaudio_format = pyaudio.paInt24
-            self.ffmpeg_format = "s24le" if sys.byteorder == "little" else "s24be"
-            self.audioop_format = 3
-        elif data_format == SInt32:
-            self.pyaudio_format = pyaudio.paInt32
-            self.ffmpeg_format = "s32le" if sys.byteorder == "little" else "s32be"
-            self.audioop_format = 4
-        elif data_format == UInt8:
-            self.pyaudio_format = pyaudio.paUInt8
-            self.ffmpeg_format = "u8"
-            self.audioop_format = 1
-        else:
+        try:
+            self.pyaudio_format, self.ffmpeg_format, self.audioop_format = {
+                SInt8: (pyaudio.paInt8, "s8", 1),
+                SInt16: (pyaudio.paInt16, "s16le" if sys.byteorder == "little" else "s16be", 2),
+                SInt24: (pyaudio.paInt24, "s24le" if sys.byteorder == "little" else "s24be", 3),
+                SInt32: (pyaudio.paInt32, "s32le" if sys.byteorder == "little" else "s32be", 4),
+                UInt8: (pyaudio.paUInt8, "u8", 1)
+            }[data_format]
+        except KeyError:
             raise ValueError("Invalid data format.")
-
-        if self.chunk % self.audioop_format != 0:
-            raise ValueError(f"The sample width of the format ({self.audioop_format}) should be evenly divisible by {self.chunk}.")
 
     def get_device_count(self) -> int:
         """
@@ -628,32 +613,6 @@ class Audio:
 
         return self._pa.get_device_info_by_index(device_index)
 
-    @property
-    def chunk(self) -> int:
-        """
-        Number of bytes per chunk when playing audio.
-        """
-        return self._chunk
-
-    @chunk.setter
-    def chunk(self, value: int) -> None:
-        if type(value) != int:
-            raise TypeError("Chunk must be an integer.")
-        elif value <= 0:
-            raise ValueError("Chunk must be greater than 0.")
-
-        try:
-            if value % self.audioop_format != 0:
-                raise ValueError(f"The sample width of the format ({self.audioop_format}) should be evenly divisible by {value}.")
-        except AttributeError:
-            pass
-
-        self._chunk = value
-
-    @chunk.deleter
-    def chunk(self) -> None:
-        del self._chunk
-
     def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
         """
         Start the audio. If the audio is currently playing it will be restarted.
@@ -673,6 +632,9 @@ class Audio:
 
         if self.path == None:
             raise ValueError("Please specify the path before starting the audio.")
+
+        if self.chunk % self.audioop_format != 0:
+            raise ValueError(f"Chunk (which is {self.chunk}) must be a multiple of the format's sample width (which is {self.audioop_format}).")
 
         if type(loop) != int:
             raise TypeError("Loop must be an integer.")
