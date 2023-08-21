@@ -11,8 +11,8 @@ Requirements
 - FFprobe (optional).
 """
 import pyaudio, audioop, subprocess, threading, time, json, re, platform, sys
-from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, AudioIsLoading, AudioEnded
-from typing import Optional, Union, Iterable, Tuple, Dict, Any
+from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, AudioIsLoading, AudioEnded
+from typing import Optional, Union, Iterable, Tuple, List, Dict, Any
 
 class Audio:
     def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
@@ -116,7 +116,7 @@ class Audio:
     @classmethod
     def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> Dict[str, Any]:
         """
-        Return a dict contains all the file's information.
+        Return a dict contains the file's information.
 
         Parameters
         ----------
@@ -167,12 +167,12 @@ class Audio:
             except subprocess.CalledProcessError:
                 raise ValueError("Invalid ffprobe path or path or data.") from None
             except LookupError:
-                raise ValueError("Invalid encoding.")
+                raise ValueError("Invalid encoding.") from None
 
     @classmethod
     def extract_information(self, raw_data: Iterable[str]) -> Dict[str, Any]:
         """
-        Return a dict contains all the file's information.
+        Return a dict contains the file's information.
 
         Parameters
         ----------
@@ -370,6 +370,28 @@ class Audio:
         return data
 
     @classmethod
+    def get_specific_codec_type(self, information: Dict[str, Any], codec_type: Any = VideoAndAudioType) -> List[Dict[str, Any]]:
+        """
+        Return a list contains the streams' information of a specific codec type.
+
+        Parameters
+        ----------
+
+        information: The file's information.
+
+        codec_type (optional): The codec type used for stream filtering. Defaults to `simple_pygame.VideoAndAudioType`.
+        """
+        if type(information) != dict:
+            raise TypeError("Information must be a dict.")
+
+        if codec_type == VideoAndAudioType:
+            return information["streams"]
+        elif codec_type == VideoType or codec_type == AudioType:
+            return [stream for stream in information["streams"] if stream["codec_type"] == ("video" if codec_type == VideoType else "audio")]
+        else:
+            raise ValueError("Invalid codec type.")
+
+    @classmethod
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
         Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the `Class` and not for general use.
@@ -453,12 +475,7 @@ class Audio:
             raise TypeError("Output options is not iterable.") from None
 
         information = self.get_information(path, encoding, use_ffmpeg, ffmpeg_path if use_ffmpeg else ffprobe_path)
-        streams = information["streams"]
-
-        audio_streams = []
-        for data in streams:
-            if data["codec_type"] == "audio":
-                audio_streams.append(data)
+        audio_streams = self.get_specific_codec_type(information, AudioType)
 
         if len(audio_streams) == 0:
             raise ValueError("The file doesn't contain audio.")
@@ -561,7 +578,7 @@ class Audio:
                 UInt8: (pyaudio.paUInt8, "u8", 1)
             }[data_format]
         except KeyError:
-            raise ValueError("Invalid data format.")
+            raise ValueError("Invalid data format.") from None
 
     def get_device_count(self) -> int:
         """
@@ -613,7 +630,7 @@ class Audio:
 
         return self._pa.get_device_info_by_index(device_index)
 
-    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
+    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, information: Optional[Dict[str, Any]] = None, stream_information: Optional[Dict[str, Any]] = None) -> None:
         """
         Start the audio. If the audio is currently playing it will be restarted.
 
@@ -627,6 +644,10 @@ class Audio:
         delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
+
+        information (optional): The file's information. Use the information returned by `create_pipe` function if the given information is `None`.
+
+        stream_information (optional): The stream's information. Use the stream information returned by `create_pipe` function if the given stream information is `None`.
         """
         self.stop()
 
@@ -649,10 +670,16 @@ class Audio:
         elif delay < 0:
             raise ValueError("Delay must be non-negative.")
 
+        if information != None and type(information) != dict:
+            raise TypeError("Information must be None/a dict.")
+
+        if stream_information != None and type(stream_information) != dict:
+            raise TypeError("Stream information must be None/a dict.")
+
         self.currently_pause = False
         self.exception = None
-        self.information = None
-        self.stream_information = None
+        self.information = information
+        self.stream_information = stream_information
         self._start = None
         self._reposition = False
         self._terminate = False
@@ -837,24 +864,34 @@ class Audio:
             pyaudio_format, ffmpeg_format, audioop_format = self.pyaudio_format, self.ffmpeg_format, self.audioop_format
             position = 0 if self._position < 0 else self._position
 
-            pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
-            self.stream_information["sample_rate"], self.stream_information["channels"] = int(self.stream_information["sample_rate"]), int(self.stream_information["channels"])
-            stream_out = self._pa.open(self.stream_information["sample_rate"], self.stream_information["channels"], pyaudio_format, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
+            pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+            if self.information == None:
+                self.information = information
+            if self.stream_information == None:
+                self.stream_information = stream_information
+
+            sample_rate, channels = int(self.stream_information["sample_rate"]), int(self.stream_information["channels"])
+            stream_out = self._pa.open(sample_rate, channels, pyaudio_format, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
 
             duration = self.stream_information.get("duration", None)
             if duration == None:
                 duration = self.information["format"].get("duration", None)
             self._duration = float(duration) if duration != None else duration
 
-            self._chunk_length = chunk / (audioop_format * self.stream_information["channels"] * self.stream_information["sample_rate"])
+            self._chunk_length = chunk / (audioop_format * channels * sample_rate)
             self._chunk_time = position if duration == None or position < self._duration else self._duration
             while not self._terminate:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
 
-                    pipe, self.information, self.stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
-                    self._reposition = False
+                    pipe.terminate()
+                    pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+                    if self.information == None:
+                        self.information = information
+                    if self.stream_information == None:
+                        self.stream_information = stream_information
 
+                    self._reposition = False
                     self._chunk_time = position if duration == None or position < self._duration else self._duration
                     self._start = time.monotonic_ns()
 
@@ -878,18 +915,20 @@ class Audio:
                     self._start = time.monotonic_ns()
                     continue
 
-                if loop == -1:
-                    pipe, self.information, self.stream_information = self.create_pipe(path, 0, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
-                    self._chunk_time = 0
-                    self._start = time.monotonic_ns()
-                elif loop > 0:
+                if loop == 0:
+                    break
+                elif loop != -1:
                     loop -= 1
 
-                    pipe, self.information, self.stream_information = self.create_pipe(path, 0, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
-                    self._chunk_time = 0
-                    self._start = time.monotonic_ns()
-                else:
-                    break
+                pipe.terminate()
+                pipe, information, stream_information = self.create_pipe(path, 0, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+                if self.information == None:
+                    self.information = information
+                if self.stream_information == None:
+                    self.stream_information = stream_information
+
+                self._chunk_time = 0
+                self._start = time.monotonic_ns()
         except Exception as exception:
             self.exception = exception
         finally:
