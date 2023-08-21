@@ -1,8 +1,11 @@
 """
 A module that holds all the constants of Simple Pygame.
 """
-AudioIsLoading = "AudioIsLoading"
-AudioEnded = "AudioEnded"
+__version__ = "0.0.7"
+
+MixerModule = "MixerModule"
+TransformModule = "TransformModule"
+AudioClass = "AudioClass"
 
 SInt8 = "SInt8"
 SInt16 = "SInt16"
@@ -10,10 +13,11 @@ SInt24 = "SInt24"
 SInt32 = "SInt32"
 UInt8 = "UInt8"
 
-MixerModule = "MixerModule"
-TransformModule = "TransformModule"
-AudioClass = "AudioClass"
+VideoAndAudioType = "VideoAndAudioType"
+VideoType = "VideoType"
+AudioType = "AudioType"
 
-__version__ = "0.0.7"
+AudioIsLoading = "AudioIsLoading"
+AudioEnded = "AudioEnded"
 
-__all__ = ["AudioIsLoading", "AudioEnded", "SInt8", "SInt16", "SInt24", "SInt32", "UInt8", "MixerModule", "TransformModule", "AudioClass", "__version__"]
+__all__ = ["__version__", "MixerModule", "TransformModule", "AudioClass", "SInt8", "SInt16", "SInt24", "SInt32", "UInt8", "VideoAndAudioType", "VideoType", "AudioType", "AudioIsLoading", "AudioEnded"]
