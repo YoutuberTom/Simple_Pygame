@@ -19,25 +19,24 @@ class TestAudio(unittest.TestCase):
         return simple_pygame.AudioClass in self.successfully_initialized
 
     def has_default_output_device(self) -> bool:
-        if self.is_initialized():
-            try:
-                self.audio.get_device_info()
-                return True
-            except:
-                return False
+        if not self.is_initialized():
+            return False
 
-        return False
+        try:
+            self.audio.get_device_info()
+        except:
+            return False
+
+        return True
 
     def test_get_information(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
         try:
             self.assertEqual(type(self.audio.get_information(self.audio.path)), dict, "The return value must be a dict.")
         except FileNotFoundError:
             self.skipTest("No ffprobe found.")
-        except Exception as exception:
-            self.fail(exception)
 
         try:
             self.assertEqual(type(self.audio.get_information(self.audio.path, encoding = "encoding")), dict, "The return value must be a dict.")
@@ -45,24 +44,20 @@ class TestAudio(unittest.TestCase):
             self.skipTest("No ffprobe found.")
         except ValueError:
             pass
-        except Exception as exception:
-            self.fail(exception)
 
         try:
             self.assertEqual(type(self.audio.get_information(self.audio.path, "utf-8", True, "ffmpeg")), dict, "The return value must be a dict.")
         except FileNotFoundError:
             self.skipTest("No ffmpeg found.")
-        except Exception as exception:
-            self.fail(exception)
 
     def test_create_pipe(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
         try:
             pipe, information, stream_information = self.audio.create_pipe(self.audio.path, stream = -1)
-        except Exception as exception:
-            self.fail(exception)
+        except FileNotFoundError:
+            self.skipTest("No ffmpeg found.")
 
         self.assertEqual(type(pipe), subprocess.Popen, "Pipe must be a subprocess.Popen object.")
         self.assertEqual(type(information), dict, "Information must be a dict.")
@@ -77,70 +72,44 @@ class TestAudio(unittest.TestCase):
 
     def test_change_attributes(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
-        try:
+        with self.assertRaises(TypeError, msg = "Expected TypeError."):
             self.audio.change_attributes(encoding = True)
-        except TypeError:
-            pass
-        except Exception as exception:
-            self.fail(exception)
 
-        try:
+        with self.assertRaises(ValueError, msg = "Expected ValueError."):
             self.audio.change_attributes(chunk = -1)
-        except ValueError:
-            pass
-        except Exception as exception:
-            self.fail(exception)
 
     def test_set_format(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
-        try:
-            self.audio.set_format(simple_pygame.SInt32)
-        except Exception as exception:
-            self.fail(exception)
-
-        try:
+        self.audio.set_format(simple_pygame.SInt32)
+        with self.assertRaises(ValueError, msg = "Expected ValueError."):
             self.audio.set_format("format")
-        except ValueError:
-            pass
-        except Exception as exception:
-            self.fail(exception)
 
     def test_device(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
         elif not self.has_default_output_device():
             self.skipTest("No default output device found.")
 
-        try:
+        with self.assertRaises(ValueError, msg = "Expected ValueError."):
             self.audio.get_device_info(-1)
-        except ValueError:
-            pass
-        except Exception as exception:
-            self.fail(exception)
 
-        try:
-            current_device_information = self.audio.get_device_info()
-            for device_index in range(self.audio.get_device_count()):
-                device_information = self.audio.get_device_info(device_index) 
-                if device_information != current_device_information["index"] and device_information["maxOutputChannels"] != 0:
-                    self.audio.set_output_device_by_index(device_information["index"])
-                    break
-
-            self.audio.set_output_device_by_index()
-        except ValueError:
-            pass
-        except Exception as exception:
-            self.fail(exception)
+        current_device_information = self.audio.get_device_info()
+        for device_index in range(self.audio.get_device_count()):
+            device_information = self.audio.get_device_info(device_index) 
+            if device_information != current_device_information["index"] and device_information["maxOutputChannels"] != 0:
+                self.audio.set_output_device_by_index(device_information["index"])
+                break
+        self.audio.set_output_device_by_index()
 
         self.assertDictEqual(self.audio.get_device_info(), current_device_information, "Invalid device information.")
 
     def test_play(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
         elif not self.has_default_output_device():
             self.skipTest("No default output device found.")
 
@@ -183,7 +152,7 @@ class TestAudio(unittest.TestCase):
 
     def test_join(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
         elif not self.has_default_output_device():
             self.skipTest("No default output device found.")
 
@@ -197,7 +166,7 @@ class TestAudio(unittest.TestCase):
 
     def test_volume(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
         self.assertEqual(self.audio.get_volume(), 1, "Invalid volume.")
         self.audio.set_volume(1 / 3)
@@ -205,7 +174,7 @@ class TestAudio(unittest.TestCase):
 
     def test_get_exception(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
         elif not self.has_default_output_device():
             self.skipTest("No default output device found.")
 
@@ -215,18 +184,14 @@ class TestAudio(unittest.TestCase):
         while self.audio.get_position() != simple_pygame.AudioEnded:
             time.sleep(0.1)
 
-        try:
+        with self.assertRaises(ValueError, msg = "Expected ValueError."):
             self.audio.get_exception()
-        except ValueError:
-            pass
-        except Exception as exception:
-            self.fail(exception)
 
         self.audio.path = self.file_path
 
     def test_context_manager(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
         with simple_pygame.mixer.Audio(self.file_path) as audio:
             audio.play()
@@ -235,7 +200,7 @@ class TestAudio(unittest.TestCase):
 
     def test_convert(self) -> None:
         if not self.is_initialized():
-            self.skipTest("Import simple_pygame.mixer.Audio failed.")
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
         self.assertEqual(self.audio.nanoseconds_to_seconds(123456789), 0.123456789, "Invalid time.")
         self.assertEqual(self.audio.seconds_to_nanoseconds(987654321), 987654321000000000, "Invalid time.")
