@@ -82,12 +82,12 @@ def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List
     rect.width = min(max(0, rect.width), surface_size[0] - rect.x)
     rect.height = min(max(0, rect.height), surface_size[1] - rect.y)
 
+    if (rect.width, rect.height) == surface_size:
+        return pygame.Rect(0, 0, 0, 0)
+
     subsurface = surface.subsurface(rect).copy()
     surface.fill(color, special_flags = special_flags)
     surface.blit(subsurface, rect)
-
-    if (rect.width, rect.height) == surface_size:
-        return pygame.Rect(0, 0, 0, 0)
 
     subrect = [0, 0, *surface_size]
     if rect.height == surface_size[1] and (rect.x == 0 or rect.x + rect.width == surface_size[0]):
