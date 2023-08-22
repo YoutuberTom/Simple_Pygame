@@ -169,8 +169,8 @@ class Audio:
             except LookupError:
                 raise ValueError("Invalid encoding.") from None
 
-    @classmethod
-    def extract_information(self, raw_data: Iterable[str]) -> Dict[str, Any]:
+    @staticmethod
+    def extract_information(raw_data: Iterable[str]) -> Dict[str, Any]:
         """
         Return a dict contains the file's information.
 
@@ -369,8 +369,8 @@ class Audio:
 
         return data
 
-    @classmethod
-    def get_specific_codec_type(self, information: Dict[str, Any], codec_type: Any = VideoAndAudioType) -> List[Dict[str, Any]]:
+    @staticmethod
+    def get_specific_codec_type(information: Dict[str, Any], codec_type: Any = VideoAndAudioType) -> List[Dict[str, Any]]:
         """
         Return a list contains the streams' information of a specific codec type.
 
@@ -391,7 +391,6 @@ class Audio:
         else:
             raise ValueError("Invalid codec type.")
 
-    @classmethod
     def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
         Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the class and not for general use.
@@ -816,7 +815,7 @@ class Audio:
             raise TypeError("Volume must be an integer/a float.")
 
         if 0 <= volume <= 2:
-            self._volume = round(volume, 2)
+            self._volume = volume
         else:
             raise ValueError("Volume must be an integer/a float between 0 and 2.")
 
@@ -841,6 +840,20 @@ class Audio:
         """
         if self.exception:
             raise self.exception
+
+    def terminate(self) -> None:
+        """
+        Clean up everything. Be sure to call this method for every instance of the `Audio` class.
+        """
+        try:
+            self.stop()
+        except AttributeError:
+            pass
+
+        try:
+            self._pa.terminate()
+        except AttributeError:
+            pass
 
     def audio(self, path: str, loop: int = 0, stream: int = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
         """
@@ -884,7 +897,10 @@ class Audio:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
 
+                    pipe.stdout.close()
                     pipe.terminate()
+                    pipe.wait()
+
                     pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
                     if self.information == None:
                         self.information = information
@@ -920,7 +936,10 @@ class Audio:
                 elif loop != -1:
                     loop -= 1
 
+                pipe.stdout.close()
                 pipe.terminate()
+                pipe.wait()
+
                 pipe, information, stream_information = self.create_pipe(path, 0, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
                 if self.information == None:
                     self.information = information
@@ -933,7 +952,9 @@ class Audio:
             self.exception = exception
         finally:
             try:
+                pipe.stdout.close()
                 pipe.terminate()
+                pipe.wait()
             except NameError:
                 pass
             try:
@@ -948,7 +969,7 @@ class Audio:
 
             self.currently_pause = False
 
-    @classmethod
+    @staticmethod
     def nanoseconds_to_seconds(self, time: Union[int, float]) -> Union[int, float]:
         """
         Convert nanoseconds to seconds.
@@ -965,7 +986,7 @@ class Audio:
 
         return time / 1000000000
 
-    @classmethod
+    @staticmethod
     def seconds_to_nanoseconds(self, time: Union[int, float]) -> Union[int, float]:
         """
         Convert seconds to nanoseconds.
@@ -992,18 +1013,4 @@ class Audio:
         """
         Clean up everything before exiting.
         """
-        self.__del__()
-
-    def __del__(self) -> None:
-        """
-        Clean up everything before deleting this instance of the `Audio` class.
-        """
-        try:
-            self.stop()
-        except AttributeError:
-            pass
-
-        try:
-            self._pa.terminate()
-        except AttributeError:
-            pass
+        self.terminate()
