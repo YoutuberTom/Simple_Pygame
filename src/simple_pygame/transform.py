@@ -35,14 +35,17 @@ def fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List], rect:
     except TypeError:
         raise ValueError("Invalid rect style object.") from None
 
-    if rect.x < 0:
-        rect.width, rect.x = max(0, rect.width + rect.x), 0
-    if rect.y < 0:
-        rect.height, rect.y = max(0, rect.height + rect.y), 0
-
     surface_size = surface.get_size()
-    rect.width = min(max(0, rect.width), surface_size[0])
-    rect.height = min(max(0, rect.height), surface_size[1])
+    if rect.x < 0:
+        rect.x, rect.width = 0, rect.x + rect.width
+    elif rect.x > surface_size[0]:
+        rect.x, rect.width = surface_size[0], 0
+    if rect.y < 0:
+        rect.y, rect.height = 0, rect.y + rect.height
+    elif rect.y > surface_size[1]:
+        rect.y, rect.height = surface_size[1], 0
+    rect.width = min(max(0, rect.width), surface_size[0] - rect.x)
+    rect.height = min(max(0, rect.height), surface_size[1] - rect.y)
 
     surface.fill(color, rect, special_flags)
     return rect
@@ -67,14 +70,17 @@ def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List
     except TypeError:
         raise ValueError("Invalid rect style object.") from None
 
-    if rect.x < 0:
-        rect.width, rect.x = max(0, rect.width + rect.x), 0
-    if rect.y < 0:
-        rect.height, rect.y = max(0, rect.height + rect.y), 0
-
     surface_size = surface.get_size()
-    rect.width = min(max(0, rect.width), surface_size[0])
-    rect.height = min(max(0, rect.height), surface_size[1])
+    if rect.x < 0:
+        rect.x, rect.width = 0, rect.x + rect.width
+    elif rect.x > surface_size[0]:
+        rect.x, rect.width = surface_size[0], 0
+    if rect.y < 0:
+        rect.y, rect.height = 0, rect.y + rect.height
+    elif rect.y > surface_size[1]:
+        rect.y, rect.height = surface_size[1], 0
+    rect.width = min(max(0, rect.width), surface_size[0] - rect.x)
+    rect.height = min(max(0, rect.height), surface_size[1] - rect.y)
 
     subsurface = surface.subsurface(rect).copy()
     surface.fill(color, special_flags = special_flags)
@@ -84,13 +90,10 @@ def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List
         return pygame.Rect(0, 0, 0, 0)
 
     subrect = [0, 0, *surface_size]
-    if rect.width == surface_size[0] and (rect.y == 0 or rect.y + rect.height == surface_size[1]):
-        if rect.y == 0:
-            subrect[1] = rect.height
-        subrect[3] -= rect.height
     if rect.height == surface_size[1] and (rect.x == 0 or rect.x + rect.width == surface_size[0]):
-        if rect.x == 0:
-            subrect[0] = rect.width
+        subrect[0] = rect.width if rect.x == 0 else 0
         subrect[2] -= rect.width
-
+    if rect.width == surface_size[0] and (rect.y == 0 or rect.y + rect.height == surface_size[1]):
+        subrect[1] = rect.height if rect.y == 0 else 0
+        subrect[3] -= rect.height
     return pygame.Rect(subrect)
