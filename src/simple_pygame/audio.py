@@ -11,11 +11,11 @@ Requirements
 - FFprobe (optional).
 """
 import pyaudio, audioop, subprocess, threading, time, json, re, platform, sys
-from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, AudioIsLoading, AudioEnded
+from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, Stdin, Stdout, Stderr, AudioIsLoading, AudioEnded
 from typing import Optional, Union, Iterable, Tuple, List, Dict, Any
 
 class Audio:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An audio object from a file contains audio. This class won't load the entire file.
 
@@ -42,6 +42,8 @@ class Audio:
         data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+
+        file_descriptor (optional): File descriptor of the pipe. Defaults to `simple_pygame.Stdout`.
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
@@ -73,6 +75,9 @@ class Audio:
         if encoding != None and type(encoding) != str:
             raise TypeError("Encoding must be None/a string.")
 
+        if file_descriptor not in (Stdin, Stdout, Stderr):
+            raise ValueError("Invalid file descriptor.")
+
         if type(loglevel) != str:
             raise TypeError("Loglevel must be a string.")
 
@@ -88,6 +93,7 @@ class Audio:
         self.frames_per_buffer = frames_per_buffer
         self.set_format(data_format)
         self.encoding = encoding
+        self.file_descriptor = file_descriptor
         self.use_ffmpeg = use_ffmpeg
         self.loglevel = loglevel
         self.ffmpeg_path = ffmpeg_path
@@ -318,7 +324,7 @@ class Audio:
                         elif index == 2:
                             data[metadata][stream_index]["channel_layout"] = small_information
                             channels = {"mono": 1, "stereo": 2}.get(small_information, None)
-                            data[metadata][stream_index]["channels"] = channels if channels else sum((int(number) for number in small_information.split(".")))
+                            data[metadata][stream_index]["channels"] = channels if channels else sum((int(number) for number in re.findall(r"\b\d+\b", small_information)))
                         elif index == 3:
                             data[metadata][stream_index]["sample_fmt"] = small_information
             elif information[:7] == "Chapter":
@@ -391,7 +397,7 @@ class Audio:
         else:
             raise ValueError("Invalid codec type.")
 
-    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
+    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
         Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the class and not for general use.
 
@@ -407,6 +413,8 @@ class Audio:
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
 
         data_format (optional): Output data format for `ffmpeg`. Use `self.ffmpeg_format` if the given data format is `None`.
+
+        file_descriptor (optional): File descriptor of the pipe. Defaults to `simple_pygame.Stdout`.
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
@@ -435,10 +443,16 @@ class Audio:
             raise TypeError("Encoding must be None/a string.")
 
         if data_format == None:
-            try:
-                data_format = self.ffmpeg_format
-            except AttributeError:
-                raise ValueError("Output data format must be specified.") from None
+            data_format = self.ffmpeg_format
+
+        try:
+            file_descriptor_number = {
+                Stdin: 0,
+                Stdout: 1,
+                Stderr: 2,
+            }[file_descriptor]
+        except KeyError:
+            raise ValueError("Invalid file descriptor.") from None
 
         if type(loglevel) != str:
             raise TypeError("Loglevel must be a string.")
@@ -450,10 +464,7 @@ class Audio:
             raise TypeError("FFprobe path must be a string.")
 
         if input_options == None:
-            try:
-                input_options = self.input_options
-            except AttributeError:
-                raise ValueError("Input options must be specified.") from None
+            input_options = self.input_options
 
         try:
             if any((type(value) != str for value in iter(input_options))):
@@ -462,10 +473,7 @@ class Audio:
             raise TypeError("Input options is not iterable.") from None
 
         if output_options == None:
-            try:
-                output_options = self.output_options
-            except AttributeError:
-                raise ValueError("Output options must be specified.") from None
+            output_options = self.output_options
 
         try:
             if any((type(value) != str for value in iter(output_options))):
@@ -486,11 +494,11 @@ class Audio:
             creationflags = subprocess.CREATE_NO_WINDOW
 
         try:
-            return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, "pipe:1"], stdout = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
+            return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:{file_descriptor_number}"], stdin = subprocess.PIPE if file_descriptor == Stdin else None, stdout = subprocess.PIPE if file_descriptor == Stdout else None, stderr = subprocess.PIPE if file_descriptor == Stderr else None, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -508,6 +516,8 @@ class Audio:
         data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
 
         encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+
+        file_descriptor (optional): File descriptor of the pipe. Defaults to `simple_pygame.Stdout`.
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
@@ -539,6 +549,9 @@ class Audio:
         if encoding != None and type(encoding) != str:
             raise TypeError("Encoding must be None/a string.")
 
+        if file_descriptor not in (Stdin, Stdout, Stderr):
+            raise ValueError("Invalid file descriptor.")
+
         if type(loglevel) != str:
             raise TypeError("Loglevel must be a string.")
 
@@ -554,6 +567,7 @@ class Audio:
         self.frames_per_buffer
         self.set_format(data_format)
         self.encoding = encoding
+        self.file_descriptor = file_descriptor
         self.use_ffmpeg = use_ffmpeg
         self.loglevel = loglevel
         self.ffmpeg_path = ffmpeg_path
@@ -845,15 +859,8 @@ class Audio:
         """
         Clean up everything. Be sure to call this method for every instance of the `Audio` class.
         """
-        try:
-            self.stop()
-        except AttributeError:
-            pass
-
-        try:
-            self._pa.terminate()
-        except AttributeError:
-            pass
+        self.stop()
+        self._pa.terminate()
 
     def audio(self, path: str, loop: int = 0, stream: int = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
         """
@@ -873,11 +880,12 @@ class Audio:
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
         """
         try:
-            chunk, frames_per_buffer, encoding, use_ffmpeg, ffmpeg_path, ffprobe_path, loglevel, input_options, output_options = self.chunk, self.frames_per_buffer, self.encoding, self.use_ffmpeg, self.ffmpeg_path, self.ffprobe_path, self.loglevel, self.input_options, self.output_options
+            chunk, frames_per_buffer, encoding, file_descriptor, use_ffmpeg, ffmpeg_path, ffprobe_path, loglevel, input_options, output_options = self.chunk, self.frames_per_buffer, self.encoding, self.file_descriptor, self.use_ffmpeg, self.ffmpeg_path, self.ffprobe_path, self.loglevel, self.input_options, self.output_options
             pyaudio_format, ffmpeg_format, audioop_format = self.pyaudio_format, self.ffmpeg_format, self.audioop_format
             position = 0 if self._position < 0 else self._position
 
-            pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+            pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+            pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
             if self.information == None:
                 self.information = information
             if self.stream_information == None:
@@ -897,11 +905,12 @@ class Audio:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
 
-                    pipe.stdout.close()
+                    pipe.file_descriptor.close()
                     pipe.terminate()
                     pipe.wait()
 
-                    pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+                    pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+                    pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
                     if self.information == None:
                         self.information = information
                     if self.stream_information == None:
@@ -918,7 +927,7 @@ class Audio:
                     time.sleep(delay)
                     continue
 
-                data = pipe.stdout.read(chunk)
+                data = pipe.file_descriptor.read(chunk)
                 if data:
                     data = audioop.mul(data, audioop_format, self._volume)
 
@@ -936,11 +945,12 @@ class Audio:
                 elif loop != -1:
                     loop -= 1
 
-                pipe.stdout.close()
+                pipe.file_descriptor.close()
                 pipe.terminate()
                 pipe.wait()
 
-                pipe, information, stream_information = self.create_pipe(path, 0, stream, encoding, ffmpeg_format, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+                pipe, information, stream_information = self.create_pipe(path, 0, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
+                pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
                 if self.information == None:
                     self.information = information
                 if self.stream_information == None:
@@ -952,7 +962,7 @@ class Audio:
             self.exception = exception
         finally:
             try:
-                pipe.stdout.close()
+                pipe.file_descriptor.close()
                 pipe.terminate()
                 pipe.wait()
             except NameError:
