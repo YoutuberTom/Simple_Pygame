@@ -7,6 +7,7 @@ name = "simple_pygame"
 version = "0.0.8"
 description = "A Python library that provides many features using Pygame and other libraries."
 readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">= 3.7"
 authors = [
     {name = "YoutuberTom"}
@@ -19,4 +20,4 @@ classifiers = [
 ]
 
 [project.urls]
-"Source" = "https://github.com/YoutuberTom/Simple_Pygame"
+"Repository" = "https://github.com/YoutuberTom/Simple_Pygame"
