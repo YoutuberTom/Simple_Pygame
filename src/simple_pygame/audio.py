@@ -970,7 +970,7 @@ class Audio:
             self.currently_pause = False
 
     @staticmethod
-    def nanoseconds_to_seconds(self, time: Union[int, float]) -> Union[int, float]:
+    def nanoseconds_to_seconds(time: Union[int, float]) -> Union[int, float]:
         """
         Convert nanoseconds to seconds.
 
@@ -987,7 +987,7 @@ class Audio:
         return time / 1000000000
 
     @staticmethod
-    def seconds_to_nanoseconds(self, time: Union[int, float]) -> Union[int, float]:
+    def seconds_to_nanoseconds(time: Union[int, float]) -> Union[int, float]:
         """
         Convert seconds to nanoseconds.
 
