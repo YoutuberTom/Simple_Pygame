@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simple_pygame"
-version = "0.0.8"
+version = "0.0.9"
 description = "A Python library that provides many features using Pygame and other libraries."
 readme = "README.md"
 license = {file = "LICENSE"}
