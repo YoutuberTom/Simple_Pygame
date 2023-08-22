@@ -13,11 +13,20 @@ class TestAudio(unittest.TestCase):
     def tearDownClass(self) -> None:
         if self.is_initialized(self):
             self.audio.terminate()
-
-        simple_pygame.mixer.quit([simple_pygame.AudioClass])
+            simple_pygame.mixer.quit([simple_pygame.AudioClass])
 
     def is_initialized(self) -> bool:
         return simple_pygame.AudioClass in self.successfully_initialized
+
+    def has_default_output_device(self) -> bool:
+        if self.is_initialized():
+            try:
+                self.audio.get_device_info()
+                return True
+            except:
+                return False
+
+        return False
 
     def test_get_information(self) -> None:
         if not self.is_initialized():
@@ -103,6 +112,8 @@ class TestAudio(unittest.TestCase):
     def test_device(self) -> None:
         if not self.is_initialized():
             self.skipTest("Import simple_pygame.mixer.Audio failed.")
+        elif not self.has_default_output_device():
+            self.skipTest("No default output device found.")
 
         try:
             self.audio.get_device_info(-1)
@@ -130,6 +141,8 @@ class TestAudio(unittest.TestCase):
     def test_play(self) -> None:
         if not self.is_initialized():
             self.skipTest("Import simple_pygame.mixer.Audio failed.")
+        elif not self.has_default_output_device():
+            self.skipTest("No default output device found.")
 
         self.assertEqual(self.audio.get_position(), simple_pygame.AudioEnded, "Invalid audio position.")
 
@@ -171,6 +184,8 @@ class TestAudio(unittest.TestCase):
     def test_join(self) -> None:
         if not self.is_initialized():
             self.skipTest("Import simple_pygame.mixer.Audio failed.")
+        elif not self.has_default_output_device():
+            self.skipTest("No default output device found.")
 
         self.audio.play()
         self.assertTrue(self.audio.get_busy(), "Play audio failed.")
@@ -191,6 +206,8 @@ class TestAudio(unittest.TestCase):
     def test_get_exception(self) -> None:
         if not self.is_initialized():
             self.skipTest("Import simple_pygame.mixer.Audio failed.")
+        elif not self.has_default_output_device():
+            self.skipTest("No default output device found.")
 
         self.audio.path = "path"
 
