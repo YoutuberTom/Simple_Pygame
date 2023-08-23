@@ -3,7 +3,7 @@ Play a file contains audio using the `Audio` class.
 """
 import simple_pygame, sys, os
 
-if simple_pygame.AudioClass not in simple_pygame.mixer.init([simple_pygame.AudioClass]):
+if simple_pygame.AudioClass not in simple_pygame.mixer.init((simple_pygame.AudioClass,)):
     raise ImportError("Initialize simple_pygame.mixer.Audio failed.")
 
 if __name__ == "__main__":
@@ -17,4 +17,4 @@ if __name__ == "__main__":
     audio.join()
     audio.terminate()
 
-    simple_pygame.mixer.quit([simple_pygame.AudioClass])
+    simple_pygame.mixer.quit((simple_pygame.AudioClass,))
