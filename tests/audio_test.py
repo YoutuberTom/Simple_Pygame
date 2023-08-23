@@ -4,7 +4,7 @@ class TestAudio(unittest.TestCase):
     @classmethod
     def setUpClass(self) -> None:
         self.file_path = os.path.join(os.path.join(os.path.dirname(sys.argv[0])), "data", "Sound.mp3")
-        self.successfully_initialized = simple_pygame.mixer.init([simple_pygame.AudioClass])
+        self.successfully_initialized = simple_pygame.mixer.init((simple_pygame.AudioClass,))
 
         if self.is_initialized(self):
             self.audio = simple_pygame.mixer.Audio(self.file_path)
@@ -13,7 +13,7 @@ class TestAudio(unittest.TestCase):
     def tearDownClass(self) -> None:
         if self.is_initialized(self):
             self.audio.terminate()
-            simple_pygame.mixer.quit([simple_pygame.AudioClass])
+            simple_pygame.mixer.quit((simple_pygame.AudioClass,))
 
     def is_initialized(self) -> bool:
         return simple_pygame.AudioClass in self.successfully_initialized
