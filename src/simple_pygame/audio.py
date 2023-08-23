@@ -879,10 +879,16 @@ class Audio:
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
         """
-        try:
-            chunk, frames_per_buffer, encoding, file_descriptor, use_ffmpeg, ffmpeg_path, ffprobe_path, loglevel, input_options, output_options = self.chunk, self.frames_per_buffer, self.encoding, self.file_descriptor, self.use_ffmpeg, self.ffmpeg_path, self.ffprobe_path, self.loglevel, self.input_options, self.output_options
-            pyaudio_format, ffmpeg_format, audioop_format = self.pyaudio_format, self.ffmpeg_format, self.audioop_format
-            position = 0 if self._position < 0 else self._position
+        def create_pipe_wrapper() -> subprocess.Popen:
+            """
+            First, this function tries to close the previous pipe (if it exists). Then it calls the `create_pipe` function to get `pipe`, `information` and `stream_information`. After that, it edits the pipe, assigns information and stream_information to this instance of the `Audio` class. Finally, it returns the pipe.
+            """
+            try:
+                pipe.file_descriptor.close()
+                pipe.terminate()
+                pipe.wait()
+            except NameError:
+                pass
 
             pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
             pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
@@ -890,6 +896,15 @@ class Audio:
                 self.information = information
             if self.stream_information == None:
                 self.stream_information = stream_information
+
+            return pipe
+
+        try:
+            chunk, frames_per_buffer, encoding, file_descriptor, use_ffmpeg, ffmpeg_path, ffprobe_path, loglevel, input_options, output_options = self.chunk, self.frames_per_buffer, self.encoding, self.file_descriptor, self.use_ffmpeg, self.ffmpeg_path, self.ffprobe_path, self.loglevel, self.input_options, self.output_options
+            pyaudio_format, ffmpeg_format, audioop_format = self.pyaudio_format, self.ffmpeg_format, self.audioop_format
+
+            position = 0 if self._position < 0 else self._position
+            pipe = create_pipe_wrapper()
 
             sample_rate, channels = int(self.stream_information["sample_rate"]), int(self.stream_information["channels"])
             stream_out = self._pa.open(sample_rate, channels, pyaudio_format, output = True, output_device_index = self._output_device_index, frames_per_buffer = frames_per_buffer)
@@ -904,17 +919,7 @@ class Audio:
             while not self._terminate:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
-
-                    pipe.file_descriptor.close()
-                    pipe.terminate()
-                    pipe.wait()
-
-                    pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
-                    pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
-                    if self.information == None:
-                        self.information = information
-                    if self.stream_information == None:
-                        self.stream_information = stream_information
+                    pipe = create_pipe_wrapper()
 
                     self._reposition = False
                     self._chunk_time = position if duration == None or position < self._duration else self._duration
@@ -945,16 +950,8 @@ class Audio:
                 elif loop != -1:
                     loop -= 1
 
-                pipe.file_descriptor.close()
-                pipe.terminate()
-                pipe.wait()
-
-                pipe, information, stream_information = self.create_pipe(path, 0, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
-                pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
-                if self.information == None:
-                    self.information = information
-                if self.stream_information == None:
-                    self.stream_information = stream_information
+                position = 0
+                pipe = create_pipe_wrapper()
 
                 self._chunk_time = 0
                 self._start = time.monotonic_ns()
