@@ -31,7 +31,7 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(rect, pygame.Rect(0, 0, surface.get_width(), surface.get_height()), "Invalid rect.")
         self.assertEqual(pygame.transform.average_color(surface), pygame.Color(255, 255, 255, 255), "Invalid color.")
 
-        rect = simple_pygame.transform.fill(surface, pygame.Color(25, 150, 75, 255), (-50, 50, 150, 750), pygame.BLEND_RGBA_SUB)
+        rect = simple_pygame.transform.fill(surface, pygame.Color(25, 150, 75, 255), [-50, 50, 150, 750], pygame.BLEND_RGBA_SUB)
         self.assertEqual(rect, pygame.Rect(0, 50, 100, 450), "Invalid rect.")
         self.assertEqual(pygame.transform.average_color(surface, rect), pygame.Color(230, 105, 180, 0), "Invalid special flag.")
 
@@ -42,7 +42,7 @@ class TestTransform(unittest.TestCase):
         surface = pygame.Surface((500, 500), pygame.SRCALPHA)
         surface.fill((255, 255, 255, 255))
 
-        rect = simple_pygame.transform.reverse_fill(surface, (25, 150, 75, 255), pygame.Rect(400, 525, 150, 25))
+        rect = simple_pygame.transform.reverse_fill(surface, [25, 150, 75, 255], pygame.Rect(400, 525, 150, 25))
         self.assertEqual(rect, pygame.Rect(0, 0, 500, 500), "Invalid rect.")
         self.assertEqual(pygame.transform.average_color(surface, pygame.Rect(0, 0, 100, 100)), pygame.Color(25, 150, 75, 255), "Invalid color.")
 
