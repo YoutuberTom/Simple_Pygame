@@ -10,12 +10,12 @@ Requirements
 
 - FFprobe (optional).
 """
-import pyaudio, audioop, subprocess, threading, time, json, re, platform, sys
+import pyaudio, audioop, subprocess, threading, time, json, re, platform, sys, os
 from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, Stdin, Stdout, Stderr, AudioIsLoading, AudioEnded
 from typing import Optional, Union, Iterable, Tuple, List, Dict, Any
 
 class Audio:
-    def __init__(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: Optional[Union[str, os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An audio object from a file contains audio. This class won't load the entire file.
 
@@ -53,38 +53,44 @@ class Audio:
 
         ffprobe_path (optional): Path to `ffprobe`.
         """
-        if path != None and type(path) != str:
-            raise TypeError("Path must be None/a string.")
+        if path != None:
+            try:
+                path = os.fspath(path)
+            except TypeError:
+                pass
 
-        if type(stream) != int:
+            if not isinstance(path, str):
+                raise TypeError("Path must be None/a string/a path-like object.")
+
+        if not isinstance(stream, int):
             raise TypeError("Stream must be an integer.")
 
-        if type(chunk) != int:
+        if not isinstance(chunk, int):
             raise TypeError("Chunk must be an integer.")
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
 
-        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and type(frames_per_buffer) != int:
+        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
             raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
-        elif type(frames_per_buffer) == int and frames_per_buffer < 0:
+        elif isinstance(frames_per_buffer, int) and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
         if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
             raise ValueError("Invalid data format.")
 
-        if encoding != None and type(encoding) != str:
+        if encoding != None and not isinstance(encoding, str):
             raise TypeError("Encoding must be None/a string.")
 
         if file_descriptor not in (Stdin, Stdout, Stderr):
             raise ValueError("Invalid file descriptor.")
 
-        if type(loglevel) != str:
+        if not isinstance(loglevel, str):
             raise TypeError("Loglevel must be a string.")
 
-        if type(ffmpeg_path) != str:
+        if not isinstance(ffmpeg_path, str):
             raise TypeError("FFmpeg path must be a string.")
 
-        if type(ffprobe_path) != str:
+        if not isinstance(ffprobe_path, str):
             raise TypeError("FFprobe path must be a string.")
 
         self.path = path
@@ -120,7 +126,7 @@ class Audio:
         self._pa = pyaudio.PyAudio()
 
     @classmethod
-    def get_information(self, path: str, encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> Dict[str, Any]:
+    def get_information(self, path: Union[str, os.PathLike], encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> Dict[str, Any]:
         """
         Return a dict contains the file's information.
 
@@ -135,13 +141,18 @@ class Audio:
 
         executable_path (optional): Path to `ffmpeg` or `ffprobe` depends on the value of `use_ffmpeg`.
         """
-        if type(path) != str:
-            raise TypeError("Path must be a string.")
+        try:
+            path = os.fspath(path)
+        except TypeError:
+            pass
 
-        if encoding != None and type(encoding) != str:
+        if not isinstance(path, str):
+            raise TypeError("Path must be a string/a path-like object.")
+
+        if encoding != None and not isinstance(encoding, str):
             raise TypeError("Encoding must be None/a string.")
 
-        if type(executable_path) != str:
+        if not isinstance(executable_path, str):
             raise TypeError("FFmpeg/FFprobe path must be a string.")
 
         if use_ffmpeg:
@@ -203,7 +214,7 @@ class Audio:
         metadata = None
         program_index, stream_index, chapter_index = -1, -1, -1
         for information in raw_data:
-            if type(information) != str:
+            if not isinstance(information, str):
                 raise ValueError("Raw data must contain only strings.")
             elif information == "":
                 continue
@@ -387,7 +398,7 @@ class Audio:
 
         codec_type (optional): The codec type used for stream filtering. Defaults to `simple_pygame.VideoAndAudioType`.
         """
-        if type(information) != dict:
+        if not isinstance(information, dict):
             raise TypeError("Information must be a dict.")
 
         if codec_type == VideoAndAudioType:
@@ -397,7 +408,7 @@ class Audio:
         else:
             raise ValueError("Invalid codec type.")
 
-    def create_pipe(self, path: str, position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
+    def create_pipe(self, path: Union[str, os.PathLike], position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
         Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the class and not for general use.
 
@@ -428,18 +439,23 @@ class Audio:
 
         output_options (optional): Output options for passing to `ffmpeg`. Use `self.output_options` if the given output options is `None`.
         """
-        if type(path) != str:
-            raise TypeError("Path must be a string.")
+        try:
+            path = os.fspath(path)
+        except TypeError:
+            pass
 
-        if type(position) != int and type(position) != float:
+        if not isinstance(path, str):
+            raise TypeError("Path must be a string/a path-like object.")
+
+        if not isinstance(position, (int, float)):
             raise TypeError("Position must be an integer/a float.")
         elif position < 0:
             position = 0
 
-        if type(stream) != int:
+        if not isinstance(stream, int):
             raise TypeError("Stream must be an integer.")
 
-        if encoding != None and type(encoding) != str:
+        if encoding != None and not isinstance(encoding, str):
             raise TypeError("Encoding must be None/a string.")
 
         if data_format == None:
@@ -454,20 +470,20 @@ class Audio:
         except KeyError:
             raise ValueError("Invalid file descriptor.") from None
 
-        if type(loglevel) != str:
+        if not isinstance(loglevel, str):
             raise TypeError("Loglevel must be a string.")
 
-        if type(ffmpeg_path) != str:
+        if not isinstance(ffmpeg_path, str):
             raise TypeError("FFmpeg path must be a string.")
 
-        if type(ffprobe_path) != str:
+        if not isinstance(ffprobe_path, str):
             raise TypeError("FFprobe path must be a string.")
 
         if input_options == None:
             input_options = self.input_options
 
         try:
-            if any((type(value) != str for value in iter(input_options))):
+            if any((not isinstance(value, str) for value in iter(input_options))):
                 raise ValueError("Input options must contain only strings.")
         except TypeError:
             raise TypeError("Input options is not iterable.") from None
@@ -476,7 +492,7 @@ class Audio:
             output_options = self.output_options
 
         try:
-            if any((type(value) != str for value in iter(output_options))):
+            if any((not isinstance(value, str) for value in iter(output_options))):
                 raise ValueError("Output options must contain only strings.")
         except TypeError:
             raise TypeError("Output options is not iterable.") from None
@@ -498,7 +514,7 @@ class Audio:
         except FileNotFoundError:
             raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[str] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: Optional[Union[str, os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -527,38 +543,44 @@ class Audio:
 
         ffprobe_path (optional): Path to `ffprobe`.
         """
-        if path != None and type(path) != str:
-            raise TypeError("Path must be None/a string.")
+        if path != None:
+            try:
+                path = os.fspath(path)
+            except TypeError:
+                pass
 
-        if type(stream) != int:
+            if not isinstance(path, str):
+                raise TypeError("Path must be None/a string/a path-like object.")
+
+        if not isinstance(stream, int):
             raise TypeError("Stream must be an integer.")
 
-        if type(chunk) != int:
+        if not isinstance(chunk, int):
             raise TypeError("Chunk must be an integer.")
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
 
-        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and type(frames_per_buffer) != int:
+        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
             raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
-        elif type(frames_per_buffer) == int and frames_per_buffer < 0:
+        elif isinstance(frames_per_buffer, int) and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
         if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
             raise ValueError("Invalid data format.")
 
-        if encoding != None and type(encoding) != str:
+        if encoding != None and not isinstance(encoding, str):
             raise TypeError("Encoding must be None/a string.")
 
         if file_descriptor not in (Stdin, Stdout, Stderr):
             raise ValueError("Invalid file descriptor.")
 
-        if type(loglevel) != str:
+        if not isinstance(loglevel, str):
             raise TypeError("Loglevel must be a string.")
 
-        if type(ffmpeg_path) != str:
+        if not isinstance(ffmpeg_path, str):
             raise TypeError("FFmpeg path must be a string.")
 
-        if type(ffprobe_path) != str:
+        if not isinstance(ffprobe_path, str):
             raise TypeError("FFprobe path must be a string.")
 
         self.path = path
@@ -612,7 +634,7 @@ class Audio:
             self._output_device_index = self.get_device_info()["index"]
             return
 
-        if type(device_index) != int:
+        if not isinstance(device_index, int):
             raise TypeError("The device's index must be an integer.")
 
         if device_index < 0 or device_index > self.get_device_count() - 1:
@@ -635,7 +657,7 @@ class Audio:
         if device_index == None:
             return self._pa.get_default_output_device_info()
 
-        if type(device_index) != int:
+        if not isinstance(device_index, int):
             raise TypeError("The device's index must be an integer.")
 
         if device_index < 0 or device_index > self.get_device_count() - 1:
@@ -670,23 +692,23 @@ class Audio:
         if self.chunk % self.audioop_format != 0:
             raise ValueError(f"Chunk (which is {self.chunk}) must be a multiple of the format's sample width (which is {self.audioop_format}).")
 
-        if type(loop) != int:
+        if not isinstance(loop, int):
             raise TypeError("Loop must be an integer.")
         elif loop < -1:
             raise ValueError("Loop must be -1 or greater.")
 
-        if type(start) != int and type(start) != float:
+        if not isinstance(start, (int, float)):
             raise TypeError("Start position must be an integer/a float.")
 
-        if type(delay) != int and type(delay) != float:
+        if not isinstance(delay, (int, float)):
             raise TypeError("Delay must be an integer/a float.")
         elif delay < 0:
             raise ValueError("Delay must be non-negative.")
 
-        if information != None and type(information) != dict:
+        if information != None and not isinstance(information, dict):
             raise TypeError("Information must be None/a dict.")
 
-        if stream_information != None and type(stream_information) != dict:
+        if stream_information != None and not isinstance(stream_information, dict):
             raise TypeError("Stream information must be None/a dict.")
 
         self.currently_pause = False
@@ -735,7 +757,7 @@ class Audio:
 
         delay (optional): Interval between each check to determine if the audio is currently busy in seconds.
         """
-        if type(delay) != int and type(delay) != float:
+        if not isinstance(delay, (int, float)):
             raise TypeError("Delay must be an integer/a float.")
         elif delay < 0:
             raise ValueError("Delay must be non-negative.")
@@ -759,7 +781,7 @@ class Audio:
 
         raise_exception (optional): Specifies whether an exception should be thrown (or silently ignored).
         """
-        if type(delay) != int and type(delay) != float:
+        if not isinstance(delay, (int, float)):
             raise TypeError("Delay must be an integer/a float.")
         elif delay < 0:
             raise ValueError("Delay must be non-negative.")
@@ -786,7 +808,7 @@ class Audio:
 
         position: Where to set the audio's position in seconds.
         """
-        if type(position) != int and type(position) != float:
+        if not isinstance(position, (int, float)):
             raise TypeError("Position must be an integer/a float.")
 
         if self.get_busy():
@@ -804,7 +826,7 @@ class Audio:
 
         digit (optional): Number of digits for rounding.
         """
-        if digit != None and type(digit) != int:
+        if digit != None and not isinstance(digit, int):
             raise TypeError("Digit must be None/an integer.")
 
         if not self.get_busy():
@@ -825,7 +847,7 @@ class Audio:
 
         volume: The audio's volume.
         """
-        if type(volume) != int and type(volume) != float:
+        if not isinstance(volume, (int, float)):
             raise TypeError("Volume must be an integer/a float.")
 
         if 0 <= volume <= 2:
@@ -862,7 +884,7 @@ class Audio:
         self.stop()
         self._pa.terminate()
 
-    def audio(self, path: str, loop: int = 0, stream: int = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
+    def audio(self, path: Union[str, os.PathLike], loop: int = 0, stream: int = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False) -> None:
         """
         Start the audio. This function is meant for use by the class and not for general use.
 
@@ -879,16 +901,19 @@ class Audio:
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
         """
-        def create_pipe_wrapper() -> subprocess.Popen:
+        def create_pipe_wrapper(previous_pipe: Optional[subprocess.Popen] = None) -> subprocess.Popen:
             """
-            First, this function tries to close the previous pipe (if it exists). Then it calls the `create_pipe` function to get `pipe`, `information` and `stream_information`. After that, it edits the pipe, assigns information and stream_information to this instance of the `Audio` class. Finally, it returns the pipe.
+            First, this function closes the previous pipe (if it's given). Then it calls the `create_pipe` function to get `pipe`, `information` and `stream_information`. After that, it edits the pipe, assigns information and stream_information to this instance of the `Audio` class. Finally, it returns the pipe.
+
+            Parameters
+            ----------
+
+            previous_pipe (optional): The pipe returned by the `create_pipe_wrapper` function in the previous call. If it's given, clean it up.
             """
-            try:
-                pipe.file_descriptor.close()
-                pipe.terminate()
-                pipe.wait()
-            except NameError:
-                pass
+            if previous_pipe != None:
+                previous_pipe.file_descriptor.close()
+                previous_pipe.terminate()
+                previous_pipe.wait()
 
             pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
             pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
@@ -919,7 +944,7 @@ class Audio:
             while not self._terminate:
                 if self._reposition:
                     position = 0 if self._position < 0 else self._position
-                    pipe = create_pipe_wrapper()
+                    pipe = create_pipe_wrapper(pipe)
 
                     self._reposition = False
                     self._chunk_time = position if duration == None or position < self._duration else self._duration
@@ -951,7 +976,7 @@ class Audio:
                     loop -= 1
 
                 position = 0
-                pipe = create_pipe_wrapper()
+                pipe = create_pipe_wrapper(pipe)
 
                 self._chunk_time = 0
                 self._start = time.monotonic_ns()
@@ -977,38 +1002,38 @@ class Audio:
             self.currently_pause = False
 
     @staticmethod
-    def nanoseconds_to_seconds(time: Union[int, float]) -> Union[int, float]:
+    def nanoseconds_to_seconds(time_in_nanoseconds: Union[int, float]) -> Union[int, float]:
         """
         Convert nanoseconds to seconds.
 
         Parameters
         ----------
 
-        time: Time in nanoseconds.
+        time_in_nanoseconds: Time in nanoseconds.
         """
-        if type(time) != int and type(time) != float:
+        if not isinstance(time_in_nanoseconds, (int, float)):
             raise TypeError("Time must be an integer/a float.")
-        elif time < 0:
+        elif time_in_nanoseconds < 0:
             raise ValueError("Time must be non-negative.")
 
-        return time / 1000000000
+        return time_in_nanoseconds / 1000000000
 
     @staticmethod
-    def seconds_to_nanoseconds(time: Union[int, float]) -> Union[int, float]:
+    def seconds_to_nanoseconds(time_in_seconds: Union[int, float]) -> Union[int, float]:
         """
         Convert seconds to nanoseconds.
 
         Parameters
         ----------
 
-        time: Time in seconds.
+        time_in_seconds: Time in seconds.
         """
-        if type(time) != int and type(time) != float:
+        if not isinstance(time_in_seconds, (int, float)):
             raise TypeError("Time must be an integer/a float.")
-        elif time < 0:
+        elif time_in_seconds < 0:
             raise ValueError("Time must be non-negative.")
 
-        return time * 1000000000
+        return time_in_seconds * 1000000000
 
     def __enter__(self) -> "Audio":
         """
