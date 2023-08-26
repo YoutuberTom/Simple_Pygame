@@ -1,4 +1,4 @@
-import simple_pygame, unittest, time, subprocess, sys, os
+import simple_pygame, unittest, time, subprocess, pathlib, sys, os
 
 class TestAudio(unittest.TestCase):
     @classmethod
@@ -79,6 +79,9 @@ class TestAudio(unittest.TestCase):
 
         with self.assertRaises(ValueError, msg = "Expected ValueError."):
             self.audio.change_attributes(chunk = -1)
+
+        self.audio.change_attributes(pathlib.Path(self.file_path))
+        self.assertEqual(os.path.normpath(self.audio.path), os.path.normpath(self.file_path), "Invalid path.")
 
     def test_set_format(self) -> None:
         if not self.is_initialized():
@@ -193,7 +196,7 @@ class TestAudio(unittest.TestCase):
         if not self.is_initialized():
             self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
 
-        with simple_pygame.mixer.Audio(self.file_path) as audio:
+        with simple_pygame.mixer.Audio(pathlib.Path(self.file_path)) as audio:
             audio.play()
 
         self.assertFalse(audio.get_busy(), "Stop audio failed.")
