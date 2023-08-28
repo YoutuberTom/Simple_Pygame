@@ -220,7 +220,7 @@ class Audio:
                 continue
 
             information = information.lstrip()
-            if information == "Metadata:" or information == "Chapters:" or information[:1] == "[":
+            if information in ("Metadata:", "Chapters:") or information[:1] == "[":
                 continue
             elif information[:5] == "Input":
                 metadata = "format"
@@ -401,12 +401,14 @@ class Audio:
         if not isinstance(information, dict):
             raise TypeError("Information must be a dict.")
 
-        if codec_type == VideoAndAudioType:
-            return information["streams"]
-        elif codec_type == VideoType or codec_type == AudioType:
-            return [stream for stream in information["streams"] if stream["codec_type"] == ("video" if codec_type == VideoType else "audio")]
-        else:
-            raise ValueError("Invalid codec type.")
+        try:
+            return {
+                VideoAndAudioType: information["streams"],
+                VideoType: [stream for stream in information["streams"] if stream["codec_type"] == "video"],
+                AudioType: [stream for stream in information["streams"] if stream["codec_type"] == "audio"]
+            }[codec_type]
+        except KeyError:
+            raise ValueError("Invalid codec type.") from None
 
     def create_pipe(self, path: Union[str, os.PathLike], position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
         """
@@ -865,10 +867,7 @@ class Audio:
         """
         Return `True` if the audio is currently playing or pausing, otherwise `False`.
         """
-        if not self._audio_thread:
-            return False
-
-        return self._audio_thread.is_alive()
+        return self._audio_thread.is_alive() if self._audio_thread else False
 
     def get_exception(self) -> None:
         """
