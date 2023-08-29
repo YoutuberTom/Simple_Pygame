@@ -220,21 +220,21 @@ class Audio:
                 continue
 
             information = information.lstrip()
-            if information in ("Metadata:", "Chapters:") or information[:1] == "[":
+            if information in ("Metadata:", "Chapters:") or information.startswith("["):
                 continue
-            elif information[:5] == "Input":
+            elif information.startswith("Input"):
                 metadata = "format"
 
                 small_information = information.split(", ", 2)[1:]
                 data[metadata]["format_name"] = small_information[0]
                 data[metadata]["filename"] = re.search(r"'(.*)'", small_information[1]).group(1)
-            elif information[:7] == "Program":
+            elif information.startswith("Program"):
                 metadata = "programs"
                 program_index += 1
 
                 data[metadata].append({"program_num": program_index})
                 data[metadata][program_index]["tags"] = {}
-            elif information[:6] == "Stream":
+            elif information.startswith("Stream"):
                 metadata = "streams"
                 stream_index += 1
 
@@ -274,7 +274,7 @@ class Audio:
 
                         found_match = re.search(r"(.*) / (.*)", matches[1])
                         data[metadata][stream_index]["codec_tag_string"], data[metadata][stream_index]["codec_tag"] = found_match.group(1), found_match.group(2)
-                    elif small_information[-4:] == "kb/s":
+                    elif small_information.endswith("kb/s"):
                         data[metadata][stream_index]["bit_rate"] = int(re.search(r"(\d+) kb/s", small_information).group(1)) * 1000
                     elif data[metadata][stream_index]["codec_type"] == "video":
                         if index == 1:
@@ -302,15 +302,15 @@ class Audio:
 
                             if matches_len == 3:
                                 data[metadata][stream_index]["field_order"] = matches[2]
-                        elif small_information[-3:] == "fps":
+                        elif small_information.endswith("fps"):
                             data[metadata][stream_index]["avg_frame_rate"] = float(re.search(r"(\d+\.\d+|\d+) fps", small_information).group(1))
-                        elif small_information[-3:] == "tbr":
+                        elif small_information.endswith("tbr"):
                             found_match = re.search(r"(\d+\.\d+|\d+)(.*) tbr", small_information)
                             data[metadata][stream_index]["r_frame_rate"] = float(found_match.group(1)) * (1000 if found_match.group(2) == "k" else 1)
-                        elif small_information[-3:] == "tbn":
+                        elif small_information.endswith("tbn"):
                             found_match = re.search(r"(\d+\.\d+|\d+)(.*) tbn", small_information)
                             data[metadata][stream_index]["time_base"] = 1 / (float(found_match.group(1)) * (1000 if found_match.group(2) == "k" else 1))
-                        elif small_information[-3:] == "tbc":
+                        elif small_information.endswith("tbc"):
                             found_match = re.search(r"(\d+\.\d+|\d+)(.*) tbc", small_information)
                             data[metadata][stream_index]["codec_time_base"] = 1 / (float(found_match.group(1)) * (1000 if found_match.group(2) == "k" else 1))
                         else:
@@ -330,7 +330,7 @@ class Audio:
 
                             data[metadata][stream_index].update({"sample_aspect_ratio": found_match.group(1), "display_aspect_ratio": found_match.group(2)})
                     elif data[metadata][stream_index]["codec_type"] == "audio":
-                        if small_information[-2:] == "Hz":
+                        if small_information.endswith("Hz"):
                             data[metadata][stream_index]["sample_rate"] = int(re.search(r"(\d+) Hz", small_information).group(1))
                         elif index == 2:
                             data[metadata][stream_index]["channel_layout"] = small_information
@@ -338,7 +338,7 @@ class Audio:
                             data[metadata][stream_index]["channels"] = channels if channels else sum((int(number) for number in re.findall(r"\b\d+\b", small_information)))
                         elif index == 3:
                             data[metadata][stream_index]["sample_fmt"] = small_information
-            elif information[:7] == "Chapter":
+            elif information.startswith("Chapter"):
                 metadata = "chapters"
                 chapter_index += 1
 
