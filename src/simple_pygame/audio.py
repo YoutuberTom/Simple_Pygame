@@ -225,9 +225,9 @@ class Audio:
             elif information[:5] == "Input":
                 metadata = "format"
 
-                small_information = re.split(r", (?=(?:[^']*'[^']*')*[^']*$)", information)[1:]
+                small_information = information.split(", ", 2)[1:]
                 data[metadata]["format_name"] = small_information[0]
-                data[metadata]["filename"] = re.search(r"'((?:[^']|'[^']+')*)'", small_information[1]).group(1)
+                data[metadata]["filename"] = re.search(r"'(.*)'", small_information[1]).group(1)
             elif information[:7] == "Program":
                 metadata = "programs"
                 program_index += 1
