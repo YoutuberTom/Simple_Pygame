@@ -4,6 +4,7 @@ Simple Pygame is a Python library that provides many features using Pygame and o
 import gc
 from typing import Iterable, Tuple
 from .constants import *
+from .exceptions import *
 from . import mixer
 
 def init(modules: Iterable = []) -> Tuple[str, ...]:
