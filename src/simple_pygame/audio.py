@@ -242,54 +242,54 @@ class Audio:
                 small_informations = re.split(r", (?![^(]*\))", information)
                 for index, small_information in enumerate(small_informations):
                     if index == len(small_informations) - 1:
-                        found_match = re.search(r"^(.*?)(?: \((.*?)\))?$", small_information)
+                        matches = re.search(r"^(.*?)(?: \((.*?)\))?$", small_information)
 
-                        if found_match.group(2):
-                            small_information = found_match.group(1)
-                            data[metadata][stream_index]["disposition"][found_match.group(2).replace(" ", "_")] = 1
+                        if matches.group(2):
+                            small_information = matches.group(1)
+                            data[metadata][stream_index]["disposition"][matches.group(2).replace(" ", "_")] = 1
 
                     if index == 0:
-                        found_match = re.search(r"((?:Video|Audio)): (.*?)(?: (\(.*?\)))?$", small_information)
-                        data[metadata][stream_index]["codec_type"] = found_match.group(1).lower()
-                        data[metadata][stream_index]["codec_name"] = found_match.group(2)
+                        matches = re.search(r"((?:Video|Audio)): (.*?)(?: (\(.*?\)))?$", small_information)
+                        data[metadata][stream_index]["codec_type"] = matches.group(1).lower()
+                        data[metadata][stream_index]["codec_name"] = matches.group(2)
 
                         if data[metadata][stream_index]["codec_type"] == "audio":
                             data[metadata][stream_index].update({"avg_frame_rate": "0/0", "r_frame_rate": "0/0"})
 
-                        if not found_match.group(3):
+                        if not matches.group(3):
                             continue
 
-                        matches = re.findall(r"\((.*?)\)", found_match.group(3))
-                        found_match = re.search(r"(.*) / (.*)", matches[0])
-                        if found_match:
-                            data[metadata][stream_index]["codec_tag_string"], data[metadata][stream_index]["codec_tag"] = found_match.group(1), found_match.group(2)
+                        sub_matches = re.findall(r"\((.*?)\)", matches.group(3))
+                        matches = re.search(r"(.*) / (.*)", sub_matches[0])
+                        if matches:
+                            data[metadata][stream_index]["codec_tag_string"], data[metadata][stream_index]["codec_tag"] = matches.group(1), matches.group(2)
                         else:
-                            data[metadata][stream_index]["profile"] = matches[0]
+                            data[metadata][stream_index]["profile"] = sub_matches[0]
 
-                        if len(matches) == 1:
+                        if len(sub_matches) == 1:
                             continue
 
-                        found_match = re.search(r"(.*) / (.*)", matches[1])
-                        data[metadata][stream_index]["codec_tag_string"], data[metadata][stream_index]["codec_tag"] = found_match.group(1), found_match.group(2)
+                        matches = re.search(r"(.*) / (.*)", sub_matches[1])
+                        data[metadata][stream_index]["codec_tag_string"], data[metadata][stream_index]["codec_tag"] = matches.group(1), matches.group(2)
                     elif small_information.endswith("kb/s"):
                         data[metadata][stream_index]["bit_rate"] = int(re.search(r"(\d+) kb/s", small_information).group(1)) * 1000
                     elif data[metadata][stream_index]["codec_type"] == "video":
                         if index == 1:
-                            found_match = re.search(r"^(.*?)(?:\s*\((.*?)\))?$", small_information)
-                            data[metadata][stream_index]["pix_fmt"] = found_match.group(1)
+                            matches = re.search(r"^(.*?)(?:\s*\((.*?)\))?$", small_information)
+                            data[metadata][stream_index]["pix_fmt"] = matches.group(1)
 
-                            if not found_match.group(2):
+                            if not matches.group(2):
                                 continue
 
-                            matches = found_match.group(2).split(", ")
-                            matches_len = len(matches)
+                            sub_matches = matches.group(2).split(", ")
+                            sub_matches_len = len(sub_matches)
 
-                            if matches_len == 1:
-                                data[metadata][stream_index]["color_range" if matches[0] in ("tv", "pc") else "field_order"] = matches[0]
+                            if sub_matches_len == 1:
+                                data[metadata][stream_index]["color_range" if sub_matches[0] in ("tv", "pc") else "field_order"] = sub_matches[0]
                                 continue
-                            data[metadata][stream_index]["color_range"] = matches[0]
+                            data[metadata][stream_index]["color_range"] = sub_matches[0]
 
-                            colors = matches[1].split("/")
+                            colors = sub_matches[1].split("/")
                             if len(colors) == 1:
                                 data[metadata][stream_index].update({key: colors[0] for key in ("color_space", "color_primaries", "color_transfer")})
                             else:
@@ -297,35 +297,35 @@ class Audio:
                                 data[metadata][stream_index].update({"color_primaries": colors[1]} if colors[1] != "unknown" else {})
                                 data[metadata][stream_index].update({"color_transfer": colors[2]} if colors[2] != "unknown" else {})
 
-                            if matches_len == 3:
-                                data[metadata][stream_index]["field_order"] = matches[2]
+                            if sub_matches_len == 3:
+                                data[metadata][stream_index]["field_order"] = sub_matches[2]
                         elif small_information.endswith("fps"):
                             data[metadata][stream_index]["avg_frame_rate"] = float(re.search(r"(\d+\.\d+|\d+) fps", small_information).group(1))
                         elif small_information.endswith("tbr"):
-                            found_match = re.search(r"(\d+\.\d+|\d+)(.*) tbr", small_information)
-                            data[metadata][stream_index]["r_frame_rate"] = float(found_match.group(1)) * (1000 if found_match.group(2) == "k" else 1)
+                            matches = re.search(r"(\d+\.\d+|\d+)(.*) tbr", small_information)
+                            data[metadata][stream_index]["r_frame_rate"] = float(matches.group(1)) * (1000 if matches.group(2) == "k" else 1)
                         elif small_information.endswith("tbn"):
-                            found_match = re.search(r"(\d+\.\d+|\d+)(.*) tbn", small_information)
-                            data[metadata][stream_index]["time_base"] = 1 / (float(found_match.group(1)) * (1000 if found_match.group(2) == "k" else 1))
+                            matches = re.search(r"(\d+\.\d+|\d+)(.*) tbn", small_information)
+                            data[metadata][stream_index]["time_base"] = 1 / (float(matches.group(1)) * (1000 if matches.group(2) == "k" else 1))
                         elif small_information.endswith("tbc"):
-                            found_match = re.search(r"(\d+\.\d+|\d+)(.*) tbc", small_information)
-                            data[metadata][stream_index]["codec_time_base"] = 1 / (float(found_match.group(1)) * (1000 if found_match.group(2) == "k" else 1))
+                            matches = re.search(r"(\d+\.\d+|\d+)(.*) tbc", small_information)
+                            data[metadata][stream_index]["codec_time_base"] = 1 / (float(matches.group(1)) * (1000 if matches.group(2) == "k" else 1))
                         else:
-                            found_match = re.search(r"(\d+)x(\d+)", small_information)
-                            if not found_match:
-                                found_match = re.search(r"SAR (.*) DAR (.*)", small_information)
-                                data[metadata][stream_index].update({"sample_aspect_ratio": found_match.group(1), "display_aspect_ratio": found_match.group(2)})
+                            matches = re.search(r"(\d+)x(\d+)", small_information)
+                            if not matches:
+                                matches = re.search(r"SAR (.*) DAR (.*)", small_information)
+                                data[metadata][stream_index].update({"sample_aspect_ratio": matches.group(1), "display_aspect_ratio": matches.group(2)})
 
                                 continue
 
-                            width, height = found_match.group(1), found_match.group(2)
+                            width, height = matches.group(1), matches.group(2)
                             data[metadata][stream_index].update({"width": width, "height": height, "coded_width": width, "coded_height": height})
 
-                            found_match = re.search(r"\[SAR (.*) DAR (.*)\]", small_information)
-                            if not found_match:
+                            matches = re.search(r"\[SAR (.*) DAR (.*)\]", small_information)
+                            if not matches:
                                 continue
 
-                            data[metadata][stream_index].update({"sample_aspect_ratio": found_match.group(1), "display_aspect_ratio": found_match.group(2)})
+                            data[metadata][stream_index].update({"sample_aspect_ratio": matches.group(1), "display_aspect_ratio": matches.group(2)})
                     elif data[metadata][stream_index]["codec_type"] == "audio":
                         if small_information.endswith("Hz"):
                             data[metadata][stream_index]["sample_rate"] = int(re.search(r"(\d+) Hz", small_information).group(1))
@@ -342,27 +342,27 @@ class Audio:
                 data[metadata].append({"id": chapter_index})
                 data[metadata][chapter_index]["tags"] = {}
 
-                found_match = re.search(r"start (\d+\.\d+), end (\d+\.\d+)", information)
-                data[metadata][chapter_index]["start_time"] = float(found_match.group(1))
-                data[metadata][chapter_index]["end_time"] = float(found_match.group(2))
+                matches = re.search(r"start (\d+\.\d+), end (\d+\.\d+)", information)
+                data[metadata][chapter_index]["start_time"] = float(matches.group(1))
+                data[metadata][chapter_index]["end_time"] = float(matches.group(2))
                 data[metadata][chapter_index].update({"start": data[metadata][chapter_index]["start_time"] * 1000, "end": data[metadata][chapter_index]["end_time"] * 1000})
             elif metadata:
-                found_match = re.search(r"Duration: (.*), start: (.*), bitrate: (.*)$", information)
-                if found_match:
-                    if found_match.group(1) != "N/A":
-                        data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(found_match.group(1).split(":"))))
-                    data["format"]["start_time"] = float(found_match.group(2))
-                    if found_match.group(3) != "N/A":
-                        data["format"]["bit_rate"] = int(re.search(r"(\d+)", found_match.group(3)).group(1)) * 1000
+                matches = re.search(r"Duration: (.*), start: (.*), bitrate: (.*)$", information)
+                if matches:
+                    if matches.group(1) != "N/A":
+                        data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(matches.group(1).split(":"))))
+                    data["format"]["start_time"] = float(matches.group(2))
+                    if matches.group(3) != "N/A":
+                        data["format"]["bit_rate"] = int(re.search(r"(\d+)", matches.group(3)).group(1)) * 1000
 
                     continue
 
-                found_match = re.search(r"Duration: (.*), bitrate: (.*)$", information)
-                if found_match:
-                    if found_match.group(1) != "N/A":
-                        data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(found_match.group(1).split(":"))))
-                    if found_match.group(2) != "N/A":
-                        data["format"]["bit_rate"] = int(re.search(r"(\d+)", found_match.group(2)).group(1)) * 1000
+                matches = re.search(r"Duration: (.*), bitrate: (.*)$", information)
+                if matches:
+                    if matches.group(1) != "N/A":
+                        data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(matches.group(1).split(":"))))
+                    if matches.group(2) != "N/A":
+                        data["format"]["bit_rate"] = int(re.search(r"(\d+)", matches.group(2)).group(1)) * 1000
 
                     continue
 
@@ -509,7 +509,7 @@ class Audio:
             creationflags = subprocess.CREATE_NO_WINDOW
 
         try:
-            return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:{file_descriptor_number}"], stdin = subprocess.PIPE if file_descriptor == Stdin else None, stdout = subprocess.PIPE if file_descriptor == Stdout else None, stderr = subprocess.PIPE if file_descriptor == Stderr else None, creationflags = creationflags), information, audio_streams[stream]
+            return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:{file_descriptor_number}"], stdin = subprocess.PIPE if file_descriptor == Stdin else subprocess.DEVNULL, stdout = subprocess.PIPE if file_descriptor == Stdout else subprocess.DEVNULL, stderr = subprocess.PIPE if file_descriptor == Stderr else subprocess.DEVNULL, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
