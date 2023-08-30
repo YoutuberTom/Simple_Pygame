@@ -12,6 +12,7 @@ Requirements
 """
 import pyaudio, audioop, subprocess, threading, time, json, re, platform, sys, os
 from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, Stdin, Stdout, Stderr, AudioIsLoading, AudioEnded
+from .exceptions import BytesDecodeError, NoOutputError, NoAudioError, FFmpegError, FFprobeError
 from typing import Optional, Union, Iterable, Tuple, List, Dict, Any
 
 class Audio:
@@ -139,7 +140,7 @@ class Audio:
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
-        executable_path (optional): Path to `ffmpeg` or `ffprobe` depends on the value of `use_ffmpeg`.
+        executable_path (optional): Path to `ffmpeg`/`ffprobe` depends on the value of `use_ffmpeg`.
         """
         try:
             path = os.fspath(path)
@@ -157,34 +158,30 @@ class Audio:
 
         if use_ffmpeg:
             try:
-                result = subprocess.run([executable_path, "-i", path], capture_output = True, encoding = encoding, text = True)
+                result = subprocess.run([executable_path, "-i", path], stderr = subprocess.PIPE, encoding = encoding, text = True)
             except FileNotFoundError:
-                raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
+                raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
             except LookupError:
                 raise ValueError("Invalid encoding.") from None
-
-            if result.stderr == None:
-                raise ValueError(f"""{'Default encoding' if encoding == None else f'Encoding "{repr(encoding)[1:-1]}"'} cannot decode the byte sequence. You can try using other encodings.""")
+            except UnicodeError:
+                raise BytesDecodeError(f"""{'Default encoding' if encoding == None else f'Encoding "{encoding}"'} cannot decode the file's information (as bytes) returned by ffmpeg. You can try using other encodings.""") from None
 
             raw_data = result.stderr.split("\n")[:-1]
             if raw_data[-1] != "At least one output file must be specified":
-                raise RuntimeError(raw_data[-1])
+                raise FFmpegError(raw_data[-1])
 
             return self.extract_information(raw_data)
         else:
             try:
-                result = subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], capture_output = True, check = True, encoding = encoding, text = True)
-
-                if result.stdout == None:
-                    raise ValueError(f"""{'Default encoding' if encoding == None else f'Encoding "{repr(encoding)[1:-1]}"'} cannot decode the byte sequence. You can try using other encodings.""")
-
-                return json.loads(result.stdout)
+                return json.loads(subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], stdout = subprocess.PIPE, stderr = subprocess.DEVNULL, check = True, encoding = encoding, text = True).stdout)
             except FileNotFoundError:
-                raise FileNotFoundError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
+                raise FFprobeError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
             except subprocess.CalledProcessError:
-                raise ValueError("Invalid ffprobe path or path or data.") from None
+                raise FFprobeError("Invalid ffprobe path or path or data.") from None
             except LookupError:
                 raise ValueError("Invalid encoding.") from None
+            except UnicodeError:
+                raise BytesDecodeError(f"""{'Default encoding' if encoding == None else f'Encoding "{encoding}"'} cannot decode the file's information (as bytes) returned by ffprobe. You can try using other encodings.""") from None
 
     @staticmethod
     def extract_information(raw_data: Iterable[str]) -> Dict[str, Any]:
@@ -503,7 +500,7 @@ class Audio:
         audio_streams = self.get_specific_codec_type(information, AudioType)
 
         if len(audio_streams) == 0:
-            raise ValueError("The file doesn't contain audio.")
+            raise NoAudioError("The file doesn't contain audio.")
         elif stream < 0 or stream >= len(audio_streams):
             stream = 0
 
@@ -514,7 +511,7 @@ class Audio:
         try:
             return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:{file_descriptor_number}"], stdin = subprocess.PIPE if file_descriptor == Stdin else None, stdout = subprocess.PIPE if file_descriptor == Stdout else None, stderr = subprocess.PIPE if file_descriptor == Stderr else None, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
-            raise FileNotFoundError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
+            raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
     def change_attributes(self, path: Optional[Union[str, os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, file_descriptor: Any = Stdout, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
@@ -643,7 +640,7 @@ class Audio:
             raise ValueError("Invalid index.")
 
         if self.get_device_info(device_index)["maxOutputChannels"] == 0:
-            raise ValueError("The device doesn't have any output channels.")
+            raise NoOutputError("The device doesn't have any output channels.")
 
         self._output_device_index = device_index
 
@@ -855,7 +852,7 @@ class Audio:
         if 0 <= volume <= 2:
             self._volume = volume
         else:
-            raise ValueError("Volume must be an integer/a float between 0 and 2.")
+            raise ValueError("Volume must be between 0 and 2.")
 
     def get_volume(self) -> Union[int, float]:
         """
