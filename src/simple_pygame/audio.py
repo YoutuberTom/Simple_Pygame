@@ -105,10 +105,11 @@ class Audio:
         self.loglevel = loglevel
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
-        self.input_options = ["-nostdin", "-accurate_seek"]
+        self.input_options = ["-accurate_seek"]
         self.output_options = []
         self.currently_pause = False
         self.exception = None
+        self.returncode = None
         self.information = None
         self.stream_information = None
         self._output_device_index = None
@@ -679,9 +680,9 @@ class Audio:
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
-        information (optional): The file's information. Use the information returned by the `create_pipe` function if the given information is `None`.
+        information (optional): The file's information. Use the information returned by `create_pipe()` if the given information is `None`.
 
-        stream_information (optional): The stream's information. Use the stream information returned by the `create_pipe` function if the given stream information is `None`.
+        stream_information (optional): The stream's information. Use the stream information returned by `create_pipe()` if the given stream information is `None`.
         """
         self.stop()
 
@@ -712,6 +713,7 @@ class Audio:
 
         self.currently_pause = False
         self.exception = None
+        self.returncode = None
         self.information = information
         self.stream_information = stream_information
         self._start = None
@@ -730,7 +732,7 @@ class Audio:
 
     def pause(self) -> None:
         """
-        Pause the audio if it's currently playing and not pausing. It can be resumed with the `resume` function.
+        Pause the audio if it's currently playing and not pausing. It can be resumed with `resume()`.
         """
         if self.get_busy() and not self.get_pause():
             self.currently_pause = True
@@ -873,6 +875,12 @@ class Audio:
         if self.exception:
             raise self.exception
 
+    def get_returncode(self) -> None:
+        """
+        Return the returncode of the nearest finished `subprocess.Popen()` since this instance was created/`play()` was called. If there are no finished `subprocess.Popen()`, return `None` instead.
+        """
+        return self.returncode
+
     def terminate(self) -> None:
         """
         Clean up everything. Be sure to call this method for every instance of the `Audio` class.
@@ -899,17 +907,19 @@ class Audio:
         """
         def create_pipe_wrapper(previous_pipe: Optional[subprocess.Popen] = None) -> subprocess.Popen:
             """
-            First, this function closes the previous pipe (if it's given). Then it calls the `create_pipe` function to get `pipe`, `information` and `stream_information`. After that, it edits the pipe, assigns information and stream_information to this instance of the `Audio` class. Finally, it returns the pipe.
+            First, this function closes the previous pipe (if it's given). Then it calls `create_pipe()` to get `pipe`, `information` and `stream_information`. After that, it edits the pipe, assigns information and stream_information to this instance. Finally, it returns the pipe.
 
             Parameters
             ----------
 
-            previous_pipe (optional): The pipe returned by the `create_pipe_wrapper` function in the previous call. If it's given, clean it up.
+            previous_pipe (optional): The pipe returned by `create_pipe_wrapper()` in the previous call. If it's given, clean it up.
             """
             if previous_pipe != None:
                 previous_pipe.file_descriptor.close()
                 previous_pipe.terminate()
                 previous_pipe.wait()
+
+                self.returncode = previous_pipe.returncode
 
             pipe, information, stream_information = self.create_pipe(path, position, stream, encoding, ffmpeg_format, file_descriptor, use_ffmpeg, loglevel, ffmpeg_path, ffprobe_path, input_options, output_options)
             pipe.file_descriptor = pipe.stdin if file_descriptor == Stdin else pipe.stdout if file_descriptor == Stdout else pipe.stderr
@@ -983,6 +993,8 @@ class Audio:
                 pipe.file_descriptor.close()
                 pipe.terminate()
                 pipe.wait()
+
+                self.returncode = pipe.returncode
             except NameError:
                 pass
             try:
@@ -1033,7 +1045,7 @@ class Audio:
 
     def __enter__(self) -> "Audio":
         """
-        Return this instance of the `Audio` class.
+        Return this instance.
         """
         return self
 
