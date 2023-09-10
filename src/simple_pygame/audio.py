@@ -73,7 +73,7 @@ class Audio:
 
         if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
             raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
-        elif isinstance(frames_per_buffer, int) and frames_per_buffer < 0:
+        elif frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
         if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
@@ -505,9 +505,10 @@ class Audio:
         elif stream < 0 or stream >= len(audio_streams):
             stream = 0
 
-        creationflags = 0
-        if platform.system() == "Windows":
+        try:
             creationflags = subprocess.CREATE_NO_WINDOW
+        except AttributeError:
+            creationflags = 0
 
         try:
             return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:{file_descriptor_number}"], stdin = subprocess.PIPE if file_descriptor == Stdin else subprocess.DEVNULL, stdout = subprocess.PIPE if file_descriptor == Stdout else subprocess.DEVNULL, stderr = subprocess.PIPE if file_descriptor == Stderr else subprocess.DEVNULL, creationflags = creationflags), information, audio_streams[stream]
@@ -562,7 +563,7 @@ class Audio:
 
         if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
             raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
-        elif isinstance(frames_per_buffer, int) and frames_per_buffer < 0:
+        elif frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
         if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
@@ -665,7 +666,7 @@ class Audio:
 
         return self._pa.get_device_info_by_index(device_index)
 
-    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, exception_on_underflow: bool = False, information: Optional[Dict[str, Any]] = None, stream_information: Optional[Dict[str, Any]] = None) -> None:
+    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, daemon: Optional[bool] = None, exception_on_underflow: bool = False, information: Optional[Dict[str, Any]] = None, stream_information: Optional[Dict[str, Any]] = None) -> None:
         """
         Start the audio. If the audio is currently playing it will be restarted.
 
@@ -677,6 +678,8 @@ class Audio:
         start (optional): Where the audio starts playing in seconds.
 
         delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
+
+        daemon (optional): Specifies whether the audio thread is a daemon thread.
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
 
@@ -726,8 +729,7 @@ class Audio:
         self._chunk_time = None
         self._chunk_length = None
 
-        self._audio_thread = threading.Thread(target = self.audio, args = (self.path, loop, self.stream, delay, exception_on_underflow))
-        self._audio_thread.daemon = True
+        self._audio_thread = threading.Thread(target = self.audio, args = (self.path, loop, self.stream, delay, exception_on_underflow), daemon = daemon)
         self._audio_thread.start()
 
     def pause(self) -> None:
@@ -771,24 +773,22 @@ class Audio:
             time.sleep(delay)
         self._audio_thread = None
 
-    def join(self, delay: Union[int, float] = 0.1, raise_exception: bool = True) -> None:
+    def join(self, timeout: Optional[Union[int, float]] = None, raise_exception: bool = True) -> None:
         """
         Wait until the audio stops.
 
         Parameters
         ----------
 
-        delay (optional): Interval between each check to determine if the audio is currently busy in seconds.
+        timeout (optional): Specifies the timeout for the operation in seconds (or fractions thereof).
 
         raise_exception (optional): Specifies whether an exception should be thrown (or silently ignored).
         """
-        if not isinstance(delay, (int, float)):
-            raise TypeError("Delay must be an integer/a float.")
-        elif delay < 0:
-            raise ValueError("Delay must be non-negative.")
+        if timeout != None and not isinstance(timeout, (int, float)):
+            raise TypeError("Timeout must be None/an integer/a float.")
 
-        while self.get_busy():
-            time.sleep(delay)
+        if self._audio_thread:
+            self._audio_thread.join(timeout)
 
         if not raise_exception:
             return
