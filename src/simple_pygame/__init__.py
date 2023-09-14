@@ -34,7 +34,7 @@ def init(modules: Iterable = []) -> Tuple[str, ...]:
             global transform
             from . import transform
             successfully_imported.append(TransformModule)
-        except ImportError:
+        except ModuleNotFoundError:
             pass
 
     return (*successfully_imported,)
