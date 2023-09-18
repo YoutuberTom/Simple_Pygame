@@ -17,11 +17,7 @@ VideoAndAudioType = "VideoAndAudioType"
 VideoType = "VideoType"
 AudioType = "AudioType"
 
-Stdin = "Stdin"
-Stdout = "Stdout"
-Stderr = "Stderr"
-
 AudioIsLoading = "AudioIsLoading"
 AudioEnded = "AudioEnded"
 
-__all__ = ["__version__", "MixerModule", "TransformModule", "AudioClass", "SInt8", "SInt16", "SInt24", "SInt32", "UInt8", "VideoAndAudioType", "VideoType", "AudioType", "Stdin", "Stdout", "Stderr", "AudioIsLoading", "AudioEnded"]
+__all__ = ["__version__", "MixerModule", "TransformModule", "AudioClass", "SInt8", "SInt16", "SInt24", "SInt32", "UInt8", "VideoAndAudioType", "VideoType", "AudioType", "AudioIsLoading", "AudioEnded"]
