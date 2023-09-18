@@ -296,7 +296,7 @@ class TestAudio(unittest.TestCase):
         self.audio.play()
         self.assertTrue(self.audio.get_busy(), "Play audio failed.")
         self.assertEqual(self.audio.get_position(), simple_pygame.AudioIsLoading, "Invalid audio position.")
-        self.assertEqual(self.audio.get_stderr(), None, "Invalid stderr.")
+        self.assertFalse(isinstance(self.audio.get_stderr(), bytes), "Invalid stderr.")
 
         while self.audio.get_position() == simple_pygame.AudioIsLoading:
             time.sleep(0.1)
