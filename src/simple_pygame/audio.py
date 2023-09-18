@@ -905,15 +905,17 @@ class Audio:
 
             create_new_pipe (optional): Specifies whether to create and return a new pipe.
             """
-            if previous_pipe != None:
+            if previous_pipe:
                 previous_pipe.stdout.close()
                 previous_pipe.terminate()
                 previous_pipe.wait()
 
                 self.returncode = previous_pipe.returncode
 
-            if read_thread != None:
+            if read_thread:
                 read_thread.join()
+                if previous_pipe:
+                    previous_pipe.stderr.close()
 
             if not create_new_pipe:
                 return
