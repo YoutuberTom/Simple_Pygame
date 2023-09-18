@@ -69,6 +69,7 @@ class TestAudio(unittest.TestCase):
         self.assertDictEqual(self.audio.get_specific_codec_type(information, simple_pygame.AudioType)[0], stream_information, "Invalid stream information.")
 
         pipe.stdout.close()
+        pipe.stderr.close()
         pipe.terminate()
         pipe.wait()
 
@@ -261,6 +262,56 @@ class TestAudio(unittest.TestCase):
         self.assertFalse(self.audio.get_busy(), "Join audio failed..")
         self.assertEqual(self.audio.get_position(), simple_pygame.AudioEnded, "Invalid audio position.")
         self.assertEqual(self.audio.get_returncode(), 0, "Invalid returncode.")
+
+    def test_get_stderr(self) -> None:
+        if not self.is_initialized():
+            self.skipTest("Initialize simple_pygame.mixer.Audio failed.")
+        elif not self.has_default_output_device():
+            self.skipTest("No default output device found.")
+
+        self.audio.play()
+        self.assertTrue(self.audio.get_busy(), "Play audio failed.")
+        self.assertEqual(self.audio.get_position(), simple_pygame.AudioIsLoading, "Invalid audio position.")
+
+        self.assertFalse(isinstance(self.audio.get_stderr(), bytes), "Invalid stderr.")
+
+        self.audio.set_position(1)
+        while self.audio._reposition:
+            time.sleep(0.1)
+
+        try:
+            self.audio.get_exception()
+        except simple_pygame.FFmpegError:
+            self.skipTest("No ffmpeg found.")
+        except simple_pygame.FFprobeError:
+            self.skipTest("No ffprobe found.")
+
+        self.assertTrue(isinstance(self.audio.get_stderr(), bytes), "Invalid returncode type.")
+
+        self.audio.stop()
+        self.assertFalse(self.audio.get_busy(), "Stop audio failed.")
+        self.assertEqual(self.audio.get_position(), simple_pygame.AudioEnded, "Invalid audio position.")
+        self.assertTrue(isinstance(self.audio.get_stderr(), bytes), "Invalid returncode type.")
+
+        self.audio.play()
+        self.assertTrue(self.audio.get_busy(), "Play audio failed.")
+        self.assertEqual(self.audio.get_position(), simple_pygame.AudioIsLoading, "Invalid audio position.")
+        self.assertEqual(self.audio.get_stderr(), None, "Invalid stderr.")
+
+        while self.audio.get_position() == simple_pygame.AudioIsLoading:
+            time.sleep(0.1)
+
+        try:
+            self.audio.get_exception()
+        except simple_pygame.FFmpegError:
+            self.skipTest("No ffmpeg found.")
+        except simple_pygame.FFprobeError:
+            self.skipTest("No ffprobe found.")
+
+        self.audio.join()
+        self.assertFalse(self.audio.get_busy(), "Join audio failed..")
+        self.assertEqual(self.audio.get_position(), simple_pygame.AudioEnded, "Invalid audio position.")
+        self.assertTrue(isinstance(self.audio.get_stderr(), bytes), "Invalid returncode type.")
 
     def test_context_manager(self) -> None:
         if not self.is_initialized():
