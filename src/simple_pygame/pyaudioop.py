@@ -1,0 +1,1 @@
+raise NotImplementedError("pyaudioop hasn't been implemented.")
