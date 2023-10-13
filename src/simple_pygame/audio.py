@@ -10,10 +10,15 @@ Requirements
 
 - FFprobe (optional).
 """
-import pyaudio, audioop, subprocess, threading, time, json, re, sys, os
+import pyaudio, subprocess, threading, time, json, re, sys, os
 from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, AudioIsLoading, AudioEnded
 from .exceptions import BytesDecodeError, NoOutputError, NoAudioError, FFmpegError, FFprobeError
 from typing import Optional, Union, BinaryIO, Iterable, Tuple, List, Dict, Any
+
+try:
+    import audioop
+except ModuleNotFoundError:
+    import pyaudioop as audioop
 
 class Audio:
     def __init__(self, path: Optional[Union[str, os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
@@ -820,20 +825,20 @@ class Audio:
 
     def set_volume(self, volume: Union[int, float]) -> None:
         """
-        Set the audio's volume. The volume must be an integer/a float between `0` and `2`, `1` is the original volume.
+        Set the audio's volume.
 
         Parameters
         ----------
 
-        volume: The audio's volume.
+        volume: The audio's volume (`1` is the original volume).
         """
         if not isinstance(volume, (int, float)):
             raise TypeError("Volume must be an integer/a float.")
 
-        if 0 <= volume <= 2:
+        if volume >= 0:
             self._volume = volume
         else:
-            raise ValueError("Volume must be between 0 and 2.")
+            raise ValueError("Volume must be non-negative.")
 
     def get_volume(self) -> Union[int, float]:
         """
