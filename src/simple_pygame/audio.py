@@ -764,7 +764,7 @@ class Audio:
         Parameters
         ----------
 
-        timeout (optional): Specifies the timeout for the operation in seconds (or fractions thereof).
+        timeout (optional): Specifies the timeout for the operation (playing the audio) in seconds (or fractions thereof). Block until the thread terminates if the given timeout is `None`.
 
         raise_exception (optional): Specifies whether an exception should be thrown (or silently ignored).
         """
