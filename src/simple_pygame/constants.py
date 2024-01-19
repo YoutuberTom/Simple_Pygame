@@ -5,6 +5,8 @@ __version__ = "0.0.9"
 
 MixerModule = "MixerModule"
 TransformModule = "TransformModule"
+TerminalModule = "TerminalModule"
+
 AudioClass = "AudioClass"
 
 SInt8 = "SInt8"
@@ -20,4 +22,4 @@ AudioType = "AudioType"
 AudioIsLoading = "AudioIsLoading"
 AudioEnded = "AudioEnded"
 
-__all__ = ["__version__", "MixerModule", "TransformModule", "AudioClass", "SInt8", "SInt16", "SInt24", "SInt32", "UInt8", "VideoAndAudioType", "VideoType", "AudioType", "AudioIsLoading", "AudioEnded"]
+__all__ = ["__version__", "MixerModule", "TransformModule", "TerminalModule", "AudioClass", "SInt8", "SInt16", "SInt24", "SInt32", "UInt8", "VideoAndAudioType", "VideoType", "AudioType", "AudioIsLoading", "AudioEnded"]
