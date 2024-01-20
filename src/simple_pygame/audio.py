@@ -18,7 +18,7 @@ from typing import Optional, Union, BinaryIO, Iterable, Tuple, List, Dict, Any
 try:
     import audioop
 except ModuleNotFoundError:
-    import pyaudioop as audioop
+    from . import pyaudioop as audioop
 
 class Audio:
     def __init__(self, path: Optional[Union[str, os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
