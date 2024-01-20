@@ -111,9 +111,9 @@ def getch_Unix() -> Union[Keys_Unix, str]:
 
         while True:
             data = getch_.getch()
-            if data:
-                key += data
-            break
+            if not data:
+                break
+            key += data
 
         fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags)
     elif key in characters:
