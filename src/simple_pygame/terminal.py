@@ -9,7 +9,7 @@ try:
     os_name = "Windows"
 except ModuleNotFoundError:
     try:
-        import getch as getch_, fcntl, os
+        import pygetch as pygetch, fcntl, os
         os_name = "Unix"
     except ModuleNotFoundError:
         raise OSError("This module doesn't support your OS.") from None
@@ -101,16 +101,16 @@ def getch_Unix() -> Union[Keys_Unix, str]:
     """
     Read a keypress and return the resulting character as a `Keys_Unix` object or as a string.
     """
-    getch_.setraw()
-    key = getch_.getch()
-    getch_.setcooked()
+    pygetch.setraw()
+    key = pygetch.getch()
+    pygetch.setcooked()
 
     if key == "\x1b":
         flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
         fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
         while True:
-            data = getch_.getch()
+            data = pygetch.getch()
             if not data:
                 break
             key += data
