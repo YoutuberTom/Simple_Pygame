@@ -6,9 +6,11 @@ from typing import Union
 
 try:
     import msvcrt
+    os_name = "Windows"
 except ModuleNotFoundError:
     try:
-        import getch, fcntl, os
+        import getch as getch_, fcntl, os
+        os_name = "Unix"
     except ModuleNotFoundError:
         raise OSError("This module doesn't support your OS.") from None
 
@@ -99,16 +101,16 @@ def getch_Unix() -> Union[Keys_Unix, str]:
     """
     Read a keypress and return the resulting character as a `Keys_Unix` object or as a string.
     """
-    getch.setraw()
-    key = getch.getch()
-    getch.setcooked()
+    getch_.setraw()
+    key = getch_.getch()
+    getch_.setcooked()
 
     if key == "\x1b":
         flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
         fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
         while True:
-            data = getch.getch()
+            data = getch_.getch()
             if data:
                 key += data
             break
@@ -121,3 +123,6 @@ def getch_Unix() -> Union[Keys_Unix, str]:
         return Keys_Unix(key)
     except ValueError:
         return Keys_Unix.Unknown
+
+Keys = Keys_Windows if os_name == "Windows" else Keys_Unix
+getch = getch_Windows if os_name == "Windows" else getch_Unix
