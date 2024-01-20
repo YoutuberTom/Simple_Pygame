@@ -6,10 +6,13 @@ from typing import Union
 
 try:
     import msvcrt
+
     os_name = "Windows"
 except ModuleNotFoundError:
     try:
-        import pygetch as pygetch, fcntl, os
+        import fcntl, os
+        from . import pygetch
+
         os_name = "Unix"
     except ModuleNotFoundError:
         raise OSError("This module doesn't support your OS.") from None
