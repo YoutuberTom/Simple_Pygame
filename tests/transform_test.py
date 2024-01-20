@@ -3,12 +3,12 @@ import simple_pygame, pygame, unittest
 class TestTransform(unittest.TestCase):
     @classmethod
     def setUpClass(self) -> None:
-        self.successfully_imported = simple_pygame.init([simple_pygame.TransformModule])
+        self.successfully_imported = simple_pygame.init((simple_pygame.TransformModule,))
 
     @classmethod
     def tearDownClass(self) -> None:
         if self.is_imported(self):
-            simple_pygame.quit([simple_pygame.TransformModule])
+            simple_pygame.quit((simple_pygame.TransformModule,))
 
     def is_imported(self) -> bool:
         return simple_pygame.TransformModule in self.successfully_imported
@@ -17,8 +17,8 @@ class TestTransform(unittest.TestCase):
         if not self.is_imported():
             self.skipTest("Import simple_pygame.transform failed.")
 
-        simple_pygame.quit([simple_pygame.TransformModule])
-        self.assertIn(simple_pygame.TransformModule, simple_pygame.init([simple_pygame.TransformModule]), "Import simple_pygame.transform failed.")
+        simple_pygame.quit((simple_pygame.TransformModule,))
+        self.assertIn(simple_pygame.TransformModule, simple_pygame.init((simple_pygame.TransformModule,)), "Import simple_pygame.transform failed.")
 
     def test_fill(self) -> None:
         if not self.is_imported():
