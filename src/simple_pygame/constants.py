@@ -1,7 +1,7 @@
 """
 A module that holds all Simple Pygame constants.
 """
-__version__ = "0.0.9"
+__version__ = "0.1.0"
 
 MixerModule = "MixerModule"
 TransformModule = "TransformModule"
