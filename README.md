@@ -1,4 +1,4 @@
-![Simple Pygame logo](https://raw.githubusercontent.com/YoutuberTom/Simple_Pygame/main/docs/images/Logo.png)
+![Simple Pygame logo](docs/images/Logo.png)
 
 Simple Pygame is a [Python](https://www.python.org/) library that provides many features using [Pygame](https://www.pygame.org/news) and other libraries. It can help you create multimedia programs much easier and cleaner.
 
