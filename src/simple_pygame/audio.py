@@ -157,9 +157,16 @@ class Audio:
         if not isinstance(executable_path, str):
             raise TypeError("FFmpeg/FFprobe path must be a string.")
 
+        try:
+            startupinfo = subprocess.STARTUPINFO(dwFlags = subprocess.CREATE_NO_WINDOW)
+            creationflags = subprocess.CREATE_NO_WINDOW
+        except AttributeError:
+            startupinfo = None
+            creationflags = 0
+
         if use_ffmpeg:
             try:
-                result = subprocess.run([executable_path, "-i", path], stderr = subprocess.PIPE, encoding = encoding, text = True)
+                result = subprocess.run([executable_path, "-i", path], stderr = subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags, encoding = encoding, text = True)
             except FileNotFoundError:
                 raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
             except LookupError:
@@ -174,7 +181,7 @@ class Audio:
             return self.extract_information(raw_data)
         else:
             try:
-                return json.loads(subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], stdout = subprocess.PIPE, stderr = subprocess.DEVNULL, check = True, encoding = encoding, text = True).stdout)
+                return json.loads(subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], stdout = subprocess.PIPE, stderr = subprocess.DEVNULL, startupinfo = startupinfo, creationflags = creationflags, check = True, encoding = encoding, text = True).stdout)
             except FileNotFoundError:
                 raise FFprobeError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
             except subprocess.CalledProcessError:
@@ -495,12 +502,14 @@ class Audio:
             stream = 0
 
         try:
+            startupinfo = subprocess.STARTUPINFO(dwFlags = subprocess.CREATE_NO_WINDOW)
             creationflags = subprocess.CREATE_NO_WINDOW
         except AttributeError:
+            startupinfo = None
             creationflags = 0
 
         try:
-            return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:1"], stdin = subprocess.DEVNULL, stdout = subprocess.PIPE, stderr = subprocess.PIPE, creationflags = creationflags), information, audio_streams[stream]
+            return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:1"], stdin = subprocess.DEVNULL, stdout = subprocess.PIPE, stderr = subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
