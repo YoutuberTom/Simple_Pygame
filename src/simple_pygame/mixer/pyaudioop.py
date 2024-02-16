@@ -8,7 +8,7 @@ try:
 except ImportError:
     from fractions import gcd
 from builtins import min as builtins_min, max as builtins_max
-from typing import Union, Optional, TypeVar, Callable, Sized, Tuple
+from typing import Union, Optional, TypeVar, Callable, Generator, Sized, Tuple
 
 ReadableBuffer = TypeVar("ReadableBuffer", bytes, bytearray, array, memoryview)
 RatecvState = TypeVar("RatecvState")
@@ -103,7 +103,7 @@ def _put_sample(buffer: ReadableBuffer, size: int, index: int, value: int, signe
 
     _pack_int24(buffer, index * size, value) if size == 3 else struct.pack_into(_struct_format(size, signed), buffer, index * size, value)
 
-def _get_samples(buffer: ReadableBuffer, size: int, signed: bool = True) -> None:
+def _get_samples(buffer: ReadableBuffer, size: int, signed: bool = True) -> Generator[int, None, None]:
     if not isinstance(size, (int, bool)):
         raise TypeError(f"an integer is required, not '{type(size).__name__}'")
 
