@@ -3,7 +3,7 @@ A module for working with audio.
 """
 import gc
 from typing import Iterable, Tuple
-from .constants import AudioClass
+from ..constants import AudioClass
 
 def init(classes: Iterable = []) -> Tuple[str, ...]:
     """
