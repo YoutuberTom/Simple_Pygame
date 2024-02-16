@@ -11,8 +11,8 @@ Requirements
 - FFprobe (optional).
 """
 import pyaudio, subprocess, threading, time, json, re, sys, os
-from .constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, AudioIsLoading, AudioEnded
-from .exceptions import BytesDecodeError, NoOutputError, NoAudioError, FFmpegError, FFprobeError
+from ..constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, AudioIsLoading, AudioEnded
+from ..exceptions import BytesDecodeError, NoOutputError, NoAudioError, FFmpegError, FFprobeError
 from typing import Optional, Union, BinaryIO, Iterable, Tuple, List, Dict, Any
 
 try:
