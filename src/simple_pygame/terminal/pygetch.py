@@ -25,12 +25,12 @@ def setcbreak() -> None:
 
 def getch() -> str:
     """
-    Read a keypress and return the resulting character as a string.
+    Return a character read from sys.stdin.
     """
     return sys.stdin.read(1)
 
 def kbhit() -> bool:
     """
-    Return `True` if a keypress is waiting to be read.
+    Return `True` if a new keypress is detected. After any character has been read, `False` will be returned instead.
     """
     return sys.stdin in select.select((sys.stdin,), (), (), 0)[0]
