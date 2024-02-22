@@ -31,6 +31,6 @@ def getch() -> str:
 
 def kbhit() -> bool:
     """
-    Return `True` if a new keypress is detected. After any character has been read, `False` will be returned instead.
+    Return `True` if a new keypress is detected on sys.stdin. After any character has been read, `False` will be returned instead.
     """
     return sys.stdin in select.select((sys.stdin,), (), (), 0)[0]
