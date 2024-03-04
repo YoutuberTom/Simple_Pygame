@@ -7,7 +7,10 @@ try:
     from math import gcd
 except ImportError:
     from fractions import gcd
-from builtins import min as builtins_min, max as builtins_max
+try:
+    from builtins import min as builtin_min, max as builtin_max
+except ImportError:
+    from __builtin__ import min as builtin_min, max as builtin_max
 from typing import Union, Optional, Callable, Generator, Sized, Tuple
 
 AdpcmState = Tuple[int, int]
@@ -103,7 +106,7 @@ def _put_sample(buffer: ReadableBuffer, size: int, index: int, value: int, signe
     _pack_int24(buffer, index * size, value) if size == 3 else struct.pack_into(_struct_format(size, signed), buffer, index * size, value)
 
 def _get_clipfn(size: int, signed: bool = True) -> Callable[[int], int]:
-    return lambda value: builtins_min(builtins_max(value, _get_minval(size, signed)), _get_maxval(size, signed))
+    return lambda value: builtin_min(builtin_max(value, _get_minval(size, signed)), _get_maxval(size, signed))
 
 def _overflow(value: int, size: int, signed: bool = True) -> int:
     if _get_minval(size, signed) <= value <= _get_maxval(size, signed):
@@ -370,7 +373,7 @@ def max(fragment: bytes, width: int) -> int:
     """
     _check_params(len(fragment), width)
 
-    return 0 if len(fragment) == 0 else builtins_max(abs(sample) for sample in _get_samples(fragment, width))
+    return 0 if len(fragment) == 0 else builtin_max(abs(sample) for sample in _get_samples(fragment, width))
 
 def maxpp(fragment: bytes, width: int) -> int:
     """
@@ -417,8 +420,8 @@ def minmax(fragment: bytes, width: int) -> Tuple[int, int]:
 
     min_sample, max_sample = 0x7fffffff, -0x80000000
     for sample in _get_samples(fragment, width):
-        min_sample = builtins_min(sample, min_sample)
-        max_sample = builtins_max(sample, max_sample)
+        min_sample = builtin_min(sample, min_sample)
+        max_sample = builtin_max(sample, max_sample)
 
     return min_sample, max_sample
 
