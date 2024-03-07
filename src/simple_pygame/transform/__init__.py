@@ -6,13 +6,16 @@ Requirements
 
 - Pygame library.
 """
-import os
-os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = ""
+import os as _os
+_os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = ""
 
-import pygame
-from typing import Union, Optional, Tuple, List
+import pygame as _pygame
+from typing import Union as _Union, Optional as _Optional, Tuple as _Tuple, List as _List
 
-def fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List], rect: Optional[Union[pygame.Rect, Tuple[int, int, int, int], List[int]]] = None, special_flags: int = 0) -> pygame.Rect:
+ColorValue = _Union[_pygame.Color, str, int, _Tuple[int, int, int], _Tuple[int, int, int, int], _List[int]]
+RectValue = _Union[_pygame.Rect, _Tuple[int, int, int, int], _List[int], _Tuple[_Tuple[int, int], _Tuple[int, int]], _List[_List[int]]]
+
+def fill(surface: _pygame.Surface, color: ColorValue, rect: _Optional[RectValue] = None, special_flags: int = 0) -> _pygame.Rect:
     """
     Fill the given Surface with a solid color. If the Rect argument is given then only the area inside the specified Rect will be filled, otherwise the entire Surface will be filled.
 
@@ -31,7 +34,7 @@ def fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List], rect:
         return surface.fill(color, special_flags = special_flags)
 
     try:
-        rect = pygame.Rect(rect) if type(rect) != pygame.Rect else rect
+        rect = _pygame.Rect(rect) if type(rect) != _pygame.Rect else rect
     except TypeError:
         raise ValueError("Invalid rect style object.") from None
 
@@ -50,7 +53,7 @@ def fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List], rect:
     surface.fill(color, rect, special_flags)
     return rect
 
-def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List], rect: Union[pygame.Rect, Tuple[int, int, int, int], List[int]], special_flags: int = 0) -> pygame.Rect:
+def reverse_fill(surface: _pygame.Surface, color: ColorValue, rect: RectValue, special_flags: int = 0) -> _pygame.Rect:
     """
     Fill the area outside the specified Rect on the given Surface with a solid color.
 
@@ -66,7 +69,7 @@ def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List
     special_flags (optional): Additional flags to customize the fill behavior.
     """
     try:
-        rect = pygame.Rect(rect) if type(rect) != pygame.Rect else rect
+        rect = _pygame.Rect(rect) if type(rect) != _pygame.Rect else rect
     except TypeError:
         raise ValueError("Invalid rect style object.") from None
 
@@ -83,7 +86,7 @@ def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List
     rect.height = min(max(0, rect.height), surface_size[1] - rect.y)
 
     if (rect.width, rect.height) == surface_size:
-        return pygame.Rect(0, 0, 0, 0)
+        return _pygame.Rect(0, 0, 0, 0)
 
     subsurface = surface.subsurface(rect).copy()
     surface.fill(color, special_flags = special_flags)
@@ -96,4 +99,4 @@ def reverse_fill(surface: pygame.Surface, color: Union[pygame.Color, Tuple, List
     if rect.width == surface_size[0] and (rect.y == 0 or rect.y + rect.height == surface_size[1]):
         subrect[1] = rect.height if rect.y == 0 else 0
         subrect[3] -= rect.height
-    return pygame.Rect(subrect)
+    return _pygame.Rect(subrect)
