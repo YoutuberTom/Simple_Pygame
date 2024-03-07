@@ -10,18 +10,21 @@ Requirements
 
 - FFprobe (optional).
 """
-import pyaudio, subprocess, threading, time, json, re, sys, os
+import pyaudio as _pyaudio, subprocess as _subprocess, threading as _threading, time as _time, re as _re, os as _os
+from json import loads as _loads
+from sys import byteorder as _byteorder
+from typing import Optional as _Optional, Union as _Union, BinaryIO as _BinaryIO, Iterable as _Iterable, Tuple as _Tuple, List as _List, Dict as _Dict, Any as _Any
+
 from ..constants import SInt8, SInt16, SInt24, SInt32, UInt8, VideoAndAudioType, VideoType, AudioType, AudioIsLoading, AudioEnded
 from ..exceptions import BytesDecodeError, NoOutputError, NoAudioError, FFmpegError, FFprobeError
-from typing import Optional, Union, BinaryIO, Iterable, Tuple, List, Dict, Any
 
 try:
-    import audioop
-except ModuleNotFoundError:
-    from . import pyaudioop as audioop
+    from audioop import mul as _mul
+except ImportError:
+    from .pyaudioop import mul as _mul
 
 class Audio:
-    def __init__(self, path: Optional[Union[str, os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def __init__(self, path: _Optional[_Union[str, _os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: _Union[int, _Any] = _pyaudio.paFramesPerBufferUnspecified, data_format: _Any = SInt16, encoding: _Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An audio object from a file contains audio. This class won't load the entire file.
 
@@ -59,7 +62,7 @@ class Audio:
         """
         if path != None:
             try:
-                path = os.fspath(path)
+                path = _os.fspath(path)
             except TypeError:
                 pass
 
@@ -74,9 +77,9 @@ class Audio:
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
 
-        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
+        if frames_per_buffer != _pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
             raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
-        elif frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and frames_per_buffer < 0:
+        elif frames_per_buffer != _pyaudio.paFramesPerBufferUnspecified and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
         if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
@@ -125,10 +128,10 @@ class Audio:
         self._chunk_length = None
         self._volume = 1.0
 
-        self._pa = pyaudio.PyAudio()
+        self._pa = _pyaudio.PyAudio()
 
     @classmethod
-    def get_information(self, path: Union[str, os.PathLike], encoding: Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> Dict[str, Any]:
+    def get_information(self, path: _Union[str, _os.PathLike], encoding: _Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> _Dict[str, _Any]:
         """
         Return a dict contains the file's information.
 
@@ -144,7 +147,7 @@ class Audio:
         executable_path (optional): Path to `ffmpeg`/`ffprobe` depends on the value of `use_ffmpeg`.
         """
         try:
-            path = os.fspath(path)
+            path = _os.fspath(path)
         except TypeError:
             pass
 
@@ -158,15 +161,15 @@ class Audio:
             raise TypeError("FFmpeg/FFprobe path must be a string.")
 
         try:
-            startupinfo = subprocess.STARTUPINFO(dwFlags = subprocess.CREATE_NO_WINDOW)
-            creationflags = subprocess.CREATE_NO_WINDOW
+            startupinfo = _subprocess.STARTUPINFO(dwFlags = _subprocess.CREATE_NO_WINDOW)
+            creationflags = _subprocess.CREATE_NO_WINDOW
         except AttributeError:
             startupinfo = None
             creationflags = 0
 
         if use_ffmpeg:
             try:
-                result = subprocess.run([executable_path, "-i", path], stderr = subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags, encoding = encoding, text = True)
+                result = _subprocess.run([executable_path, "-i", path], stderr = _subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags, encoding = encoding, text = True)
             except FileNotFoundError:
                 raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
             except LookupError:
@@ -181,10 +184,10 @@ class Audio:
             return self.extract_information(raw_data)
         else:
             try:
-                return json.loads(subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], stdout = subprocess.PIPE, stderr = subprocess.DEVNULL, startupinfo = startupinfo, creationflags = creationflags, check = True, encoding = encoding, text = True).stdout)
+                return _loads(_subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], stdout = _subprocess.PIPE, stderr = _subprocess.DEVNULL, startupinfo = startupinfo, creationflags = creationflags, check = True, encoding = encoding, text = True).stdout)
             except FileNotFoundError:
                 raise FFprobeError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
-            except subprocess.CalledProcessError:
+            except _subprocess.CalledProcessError:
                 raise FFprobeError("Invalid ffprobe path or path or data.") from None
             except LookupError:
                 raise ValueError("Invalid encoding.") from None
@@ -192,7 +195,7 @@ class Audio:
                 raise BytesDecodeError(f"""{'Default encoding' if encoding == None else f'Encoding "{encoding}"'} cannot decode the file's information (as bytes) returned by ffprobe. You can try using other encodings.""") from None
 
     @staticmethod
-    def extract_information(raw_data: Iterable[str]) -> Dict[str, Any]:
+    def extract_information(raw_data: _Iterable[str]) -> _Dict[str, _Any]:
         """
         Return a dict contains the file's information.
 
@@ -232,7 +235,7 @@ class Audio:
 
                 small_information = information.split(", ", 2)[1:]
                 data[metadata]["format_name"] = small_information[0]
-                data[metadata]["filename"] = re.search(r"'(.*)'", small_information[1]).group(1)
+                data[metadata]["filename"] = _re.search(r"'(.*)'", small_information[1]).group(1)
             elif information.startswith("Program"):
                 metadata = "programs"
                 program_index += 1
@@ -247,17 +250,17 @@ class Audio:
                 data[metadata][stream_index]["tags"] = {}
                 data[metadata][stream_index]["disposition"] = {"default": 0, "dub": 0, "original": 0, "comment": 0, "lyrics": 0, "karaoke": 0, "forced": 0, "hearing_impaired": 0, "visual_impaired": 0, "clean_effects": 0, "attached_pic": 0, "timed_thumbnails": 0, "captions": 0, "descriptions": 0, "metadata": 0, "dependent": 0, "still_image": 0}
 
-                small_informations = re.split(r", (?![^(]*\))", information)
+                small_informations = _re.split(r", (?![^(]*\))", information)
                 for index, small_information in enumerate(small_informations):
                     if index == len(small_informations) - 1:
-                        matches = re.search(r"^(.*?)(?: \((.*?)\))?$", small_information)
+                        matches = _re.search(r"^(.*?)(?: \((.*?)\))?$", small_information)
 
                         if matches.group(2):
                             small_information = matches.group(1)
                             data[metadata][stream_index]["disposition"][matches.group(2).replace(" ", "_")] = 1
 
                     if index == 0:
-                        matches = re.search(r"((?:Video|Audio)): (.*?)(?: (\(.*?\)))?$", small_information)
+                        matches = _re.search(r"((?:Video|Audio)): (.*?)(?: (\(.*?\)))?$", small_information)
                         data[metadata][stream_index]["codec_type"] = matches.group(1).lower()
                         data[metadata][stream_index]["codec_name"] = matches.group(2)
 
@@ -267,8 +270,8 @@ class Audio:
                         if not matches.group(3):
                             continue
 
-                        sub_matches = re.findall(r"\((.*?)\)", matches.group(3))
-                        matches = re.search(r"(.*) / (.*)", sub_matches[0])
+                        sub_matches = _re.findall(r"\((.*?)\)", matches.group(3))
+                        matches = _re.search(r"(.*) / (.*)", sub_matches[0])
                         if matches:
                             data[metadata][stream_index]["codec_tag_string"], data[metadata][stream_index]["codec_tag"] = matches.group(1), matches.group(2)
                         else:
@@ -277,13 +280,13 @@ class Audio:
                         if len(sub_matches) == 1:
                             continue
 
-                        matches = re.search(r"(.*) / (.*)", sub_matches[1])
+                        matches = _re.search(r"(.*) / (.*)", sub_matches[1])
                         data[metadata][stream_index]["codec_tag_string"], data[metadata][stream_index]["codec_tag"] = matches.group(1), matches.group(2)
                     elif small_information.endswith("kb/s"):
-                        data[metadata][stream_index]["bit_rate"] = int(re.search(r"(\d+) kb/s", small_information).group(1)) * 1000
+                        data[metadata][stream_index]["bit_rate"] = int(_re.search(r"(\d+) kb/s", small_information).group(1)) * 1000
                     elif data[metadata][stream_index]["codec_type"] == "video":
                         if index == 1:
-                            matches = re.search(r"^(.*?)(?:\s*\((.*?)\))?$", small_information)
+                            matches = _re.search(r"^(.*?)(?:\s*\((.*?)\))?$", small_information)
                             data[metadata][stream_index]["pix_fmt"] = matches.group(1)
 
                             if not matches.group(2):
@@ -308,20 +311,20 @@ class Audio:
                             if sub_matches_len == 3:
                                 data[metadata][stream_index]["field_order"] = sub_matches[2]
                         elif small_information.endswith("fps"):
-                            data[metadata][stream_index]["avg_frame_rate"] = float(re.search(r"(\d+\.\d+|\d+) fps", small_information).group(1))
+                            data[metadata][stream_index]["avg_frame_rate"] = float(_re.search(r"(\d+\.\d+|\d+) fps", small_information).group(1))
                         elif small_information.endswith("tbr"):
-                            matches = re.search(r"(\d+\.\d+|\d+)(.*) tbr", small_information)
+                            matches = _re.search(r"(\d+\.\d+|\d+)(.*) tbr", small_information)
                             data[metadata][stream_index]["r_frame_rate"] = float(matches.group(1)) * (1000 if matches.group(2) == "k" else 1)
                         elif small_information.endswith("tbn"):
-                            matches = re.search(r"(\d+\.\d+|\d+)(.*) tbn", small_information)
+                            matches = _re.search(r"(\d+\.\d+|\d+)(.*) tbn", small_information)
                             data[metadata][stream_index]["time_base"] = 1 / (float(matches.group(1)) * (1000 if matches.group(2) == "k" else 1))
                         elif small_information.endswith("tbc"):
-                            matches = re.search(r"(\d+\.\d+|\d+)(.*) tbc", small_information)
+                            matches = _re.search(r"(\d+\.\d+|\d+)(.*) tbc", small_information)
                             data[metadata][stream_index]["codec_time_base"] = 1 / (float(matches.group(1)) * (1000 if matches.group(2) == "k" else 1))
                         else:
-                            matches = re.search(r"(\d+)x(\d+)", small_information)
+                            matches = _re.search(r"(\d+)x(\d+)", small_information)
                             if not matches:
-                                matches = re.search(r"SAR (.*) DAR (.*)", small_information)
+                                matches = _re.search(r"SAR (.*) DAR (.*)", small_information)
                                 data[metadata][stream_index].update({"sample_aspect_ratio": matches.group(1), "display_aspect_ratio": matches.group(2)})
 
                                 continue
@@ -329,18 +332,18 @@ class Audio:
                             width, height = matches.group(1), matches.group(2)
                             data[metadata][stream_index].update({"width": width, "height": height, "coded_width": width, "coded_height": height})
 
-                            matches = re.search(r"\[SAR (.*) DAR (.*)\]", small_information)
+                            matches = _re.search(r"\[SAR (.*) DAR (.*)\]", small_information)
                             if not matches:
                                 continue
 
                             data[metadata][stream_index].update({"sample_aspect_ratio": matches.group(1), "display_aspect_ratio": matches.group(2)})
                     elif data[metadata][stream_index]["codec_type"] == "audio":
                         if small_information.endswith("Hz"):
-                            data[metadata][stream_index]["sample_rate"] = int(re.search(r"(\d+) Hz", small_information).group(1))
+                            data[metadata][stream_index]["sample_rate"] = int(_re.search(r"(\d+) Hz", small_information).group(1))
                         elif index == 2:
                             data[metadata][stream_index]["channel_layout"] = small_information
                             channels = {"mono": 1, "stereo": 2}.get(small_information, None)
-                            data[metadata][stream_index]["channels"] = channels if channels else sum((int(number) for number in re.findall(r"\b\d+\b", small_information)))
+                            data[metadata][stream_index]["channels"] = channels if channels else sum((int(number) for number in _re.findall(r"\b\d+\b", small_information)))
                         elif index == 3:
                             data[metadata][stream_index]["sample_fmt"] = small_information
             elif information.startswith("Chapter"):
@@ -350,27 +353,27 @@ class Audio:
                 data[metadata].append({"id": chapter_index})
                 data[metadata][chapter_index]["tags"] = {}
 
-                matches = re.search(r"start (\d+\.\d+), end (\d+\.\d+)", information)
+                matches = _re.search(r"start (\d+\.\d+), end (\d+\.\d+)", information)
                 data[metadata][chapter_index]["start_time"] = float(matches.group(1))
                 data[metadata][chapter_index]["end_time"] = float(matches.group(2))
                 data[metadata][chapter_index].update({"start": data[metadata][chapter_index]["start_time"] * 1000, "end": data[metadata][chapter_index]["end_time"] * 1000})
             elif metadata:
-                matches = re.search(r"Duration: (.*), start: (.*), bitrate: (.*)$", information)
+                matches = _re.search(r"Duration: (.*), start: (.*), bitrate: (.*)$", information)
                 if matches:
                     if matches.group(1) != "N/A":
                         data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(matches.group(1).split(":"))))
                     data["format"]["start_time"] = float(matches.group(2))
                     if matches.group(3) != "N/A":
-                        data["format"]["bit_rate"] = int(re.search(r"(\d+)", matches.group(3)).group(1)) * 1000
+                        data["format"]["bit_rate"] = int(_re.search(r"(\d+)", matches.group(3)).group(1)) * 1000
 
                     continue
 
-                matches = re.search(r"Duration: (.*), bitrate: (.*)$", information)
+                matches = _re.search(r"Duration: (.*), bitrate: (.*)$", information)
                 if matches:
                     if matches.group(1) != "N/A":
                         data["format"]["duration"] = sum((float(value) * (60 ** (2 - index)) for index, value in enumerate(matches.group(1).split(":"))))
                     if matches.group(2) != "N/A":
-                        data["format"]["bit_rate"] = int(re.search(r"(\d+)", matches.group(2)).group(1)) * 1000
+                        data["format"]["bit_rate"] = int(_re.search(r"(\d+)", matches.group(2)).group(1)) * 1000
 
                     continue
 
@@ -392,7 +395,7 @@ class Audio:
         return data
 
     @staticmethod
-    def get_specific_codec_type(information: Dict[str, Any], codec_type: Any = VideoAndAudioType) -> List[Dict[str, Any]]:
+    def get_specific_codec_type(information: _Dict[str, _Any], codec_type: _Any = VideoAndAudioType) -> _List[_Dict[str, _Any]]:
         """
         Return a list contains the streams' information of a specific codec type.
 
@@ -415,7 +418,7 @@ class Audio:
         except KeyError:
             raise ValueError("Invalid codec type.") from None
 
-    def create_pipe(self, path: Union[str, os.PathLike], position: Union[int, float] = 0, stream: int = 0, encoding: Optional[str] = None, data_format: Any = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: Optional[Iterable[str]] = None, output_options: Optional[Iterable[str]] = None) -> Tuple[subprocess.Popen, Dict[str, Any], Dict[str, Any]]:
+    def create_pipe(self, path: _Union[str, _os.PathLike], position: _Union[int, float] = 0, stream: int = 0, encoding: _Optional[str] = None, data_format: _Any = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe", input_options: _Optional[_Iterable[str]] = None, output_options: _Optional[_Iterable[str]] = None) -> _Tuple[_subprocess.Popen, _Dict[str, _Any], _Dict[str, _Any]]:
         """
         Return a pipe contains the output of `ffmpeg`, a dict contains the file's information and a dict contains the stream's information. This function is meant for use by the class and not for general use.
 
@@ -445,7 +448,7 @@ class Audio:
         output_options (optional): Output options for passing to `ffmpeg`. Use `self.output_options` if the given output options is `None`.
         """
         try:
-            path = os.fspath(path)
+            path = _os.fspath(path)
         except TypeError:
             pass
 
@@ -502,18 +505,18 @@ class Audio:
             stream = 0
 
         try:
-            startupinfo = subprocess.STARTUPINFO(dwFlags = subprocess.CREATE_NO_WINDOW)
-            creationflags = subprocess.CREATE_NO_WINDOW
+            startupinfo = _subprocess.STARTUPINFO(dwFlags = _subprocess.CREATE_NO_WINDOW)
+            creationflags = _subprocess.CREATE_NO_WINDOW
         except AttributeError:
             startupinfo = None
             creationflags = 0
 
         try:
-            return subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:1"], stdin = subprocess.DEVNULL, stdout = subprocess.PIPE, stderr = subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags), information, audio_streams[stream]
+            return _subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:1"], stdin = _subprocess.DEVNULL, stdout = _subprocess.PIPE, stderr = _subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
-    def change_attributes(self, path: Optional[Union[str, os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: Union[int, Any] = pyaudio.paFramesPerBufferUnspecified, data_format: Any = SInt16, encoding: Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
+    def change_attributes(self, path: _Optional[_Union[str, _os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: _Union[int, _Any] = _pyaudio.paFramesPerBufferUnspecified, data_format: _Any = SInt16, encoding: _Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
         An easier way to change some attributes.
 
@@ -542,7 +545,7 @@ class Audio:
         """
         if path != None:
             try:
-                path = os.fspath(path)
+                path = _os.fspath(path)
             except TypeError:
                 pass
 
@@ -557,9 +560,9 @@ class Audio:
         elif chunk <= 0:
             raise ValueError("Chunk must be greater than 0.")
 
-        if frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
+        if frames_per_buffer != _pyaudio.paFramesPerBufferUnspecified and not isinstance(frames_per_buffer, int):
             raise TypeError("Frames per buffer must be pyaudio.paFramesPerBufferUnspecified/an integer.")
-        elif frames_per_buffer != pyaudio.paFramesPerBufferUnspecified and frames_per_buffer < 0:
+        elif frames_per_buffer != _pyaudio.paFramesPerBufferUnspecified and frames_per_buffer < 0:
             raise ValueError("Frames per buffer must be non-negative.")
 
         if data_format not in (SInt8, SInt16, SInt24, SInt32, UInt8):
@@ -588,7 +591,7 @@ class Audio:
         self.ffmpeg_path = ffmpeg_path
         self.ffprobe_path = ffprobe_path
 
-    def set_format(self, data_format: Any = SInt16) -> None:
+    def set_format(self, data_format: _Any = SInt16) -> None:
         """
         Set output data format.
 
@@ -599,11 +602,11 @@ class Audio:
         """
         try:
             self.pyaudio_format, self.ffmpeg_format, self.audioop_format = {
-                SInt8: (pyaudio.paInt8, "s8", 1),
-                SInt16: (pyaudio.paInt16, "s16le" if sys.byteorder == "little" else "s16be", 2),
-                SInt24: (pyaudio.paInt24, "s24le" if sys.byteorder == "little" else "s24be", 3),
-                SInt32: (pyaudio.paInt32, "s32le" if sys.byteorder == "little" else "s32be", 4),
-                UInt8: (pyaudio.paUInt8, "u8", 1)
+                SInt8: (_pyaudio.paInt8, "s8", 1),
+                SInt16: (_pyaudio.paInt16, "s16le" if _byteorder == "little" else "s16be", 2),
+                SInt24: (_pyaudio.paInt24, "s24le" if _byteorder == "little" else "s24be", 3),
+                SInt32: (_pyaudio.paInt32, "s32le" if _byteorder == "little" else "s32be", 4),
+                UInt8: (_pyaudio.paUInt8, "u8", 1)
             }[data_format]
         except KeyError:
             raise ValueError("Invalid data format.") from None
@@ -614,7 +617,7 @@ class Audio:
         """
         return self._pa.get_device_count()
 
-    def set_output_device_by_index(self, device_index: Optional[int] = None) -> None:
+    def set_output_device_by_index(self, device_index: _Optional[int] = None) -> None:
         """
         Set output device by index.
 
@@ -638,7 +641,7 @@ class Audio:
 
         self._output_device_index = device_index
 
-    def get_device_info(self, device_index: Optional[int] = None) -> Dict[str, Any]:
+    def get_device_info(self, device_index: _Optional[int] = None) -> _Dict[str, _Any]:
         """
         Return device's information.
 
@@ -658,7 +661,7 @@ class Audio:
 
         return self._pa.get_device_info_by_index(device_index)
 
-    def play(self, loop: int = 0, start: Union[int, float] = 0, delay: Union[int, float] = 0.1, daemon: Optional[bool] = None, exception_on_underflow: bool = False, information: Optional[Dict[str, Any]] = None, stream_information: Optional[Dict[str, Any]] = None) -> None:
+    def play(self, loop: int = 0, start: _Union[int, float] = 0, delay: _Union[int, float] = 0.1, daemon: _Optional[bool] = None, exception_on_underflow: bool = False, information: _Optional[_Dict[str, _Any]] = None, stream_information: _Optional[_Dict[str, _Any]] = None) -> None:
         """
         Start the audio. If the audio is currently playing it will be restarted.
 
@@ -722,7 +725,7 @@ class Audio:
         self._chunk_time = None
         self._chunk_length = None
 
-        self._audio_thread = threading.Thread(target = self.audio, args = (self.path, loop, self.stream, delay, daemon, exception_on_underflow), daemon = daemon)
+        self._audio_thread = _threading.Thread(target = self.audio, args = (self.path, loop, self.stream, delay, daemon, exception_on_underflow), daemon = daemon)
         self._audio_thread.start()
 
     def pause(self) -> None:
@@ -741,10 +744,10 @@ class Audio:
         self.currently_pause = False
 
         if self._pause_offset != None:
-            self._start = time.monotonic_ns() - self.seconds_to_nanoseconds(self._pause_offset)
+            self._start = _time.monotonic_ns() - self.seconds_to_nanoseconds(self._pause_offset)
         self._pause_offset = None
 
-    def stop(self, delay: Union[int, float] = 0.1) -> None:
+    def stop(self, delay: _Union[int, float] = 0.1) -> None:
         """
         Stop the audio if it's currently playing.
 
@@ -763,10 +766,10 @@ class Audio:
 
         self._terminate = True
         while self.get_busy():
-            time.sleep(delay)
+            _time.sleep(delay)
         self._audio_thread = None
 
-    def join(self, timeout: Optional[Union[int, float]] = None, raise_exception: bool = True) -> None:
+    def join(self, timeout: _Optional[_Union[int, float]] = None, raise_exception: bool = True) -> None:
         """
         Wait until the audio stops.
 
@@ -793,7 +796,7 @@ class Audio:
         """
         return self.currently_pause if self.get_busy() else False
 
-    def set_position(self, position: Union[int, float]) -> None:
+    def set_position(self, position: _Union[int, float]) -> None:
         """
         Set the audio's position where the audio will continue to play.
 
@@ -811,7 +814,7 @@ class Audio:
         else:
             self.play(start = position)
 
-    def get_position(self, digit: Optional[int] = 4) -> Any:
+    def get_position(self, digit: _Optional[int] = 4) -> _Any:
         """
         Return the current audio's position in seconds if the audio currently playing or pausing, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
 
@@ -829,10 +832,10 @@ class Audio:
         if self._start == None:
             return AudioIsLoading
 
-        position = min([self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length)), self._duration][:1 if self._duration == None else 2])
+        position = min([self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(max(_time.monotonic_ns() - self._start, 0)), self._chunk_length)), self._duration][:1 if self._duration == None else 2])
         return position if digit == None else round(position, digit)
 
-    def set_volume(self, volume: Union[int, float]) -> None:
+    def set_volume(self, volume: _Union[int, float]) -> None:
         """
         Set the audio's volume.
 
@@ -849,7 +852,7 @@ class Audio:
         else:
             raise ValueError("Volume must be non-negative.")
 
-    def get_volume(self) -> Union[int, float]:
+    def get_volume(self) -> _Union[int, float]:
         """
         Return the audio's volume.
         """
@@ -868,13 +871,13 @@ class Audio:
         if self.exception:
             raise self.exception
 
-    def get_returncode(self) -> Optional[int]:
+    def get_returncode(self) -> _Optional[int]:
         """
         Return the returncode of the nearest finished `subprocess.Popen()` since `play()` was called. If there are no finished `subprocess.Popen()`, return `None` instead.
         """
         return self.returncode
 
-    def get_stderr(self) -> Optional[bytes]:
+    def get_stderr(self) -> _Optional[bytes]:
         """
         Return the value read from stderr of the nearest finished `subprocess.Popen()` since `play()` was called. If there are no finished `subprocess.Popen()`, return `None` instead.
         """
@@ -887,7 +890,7 @@ class Audio:
         self.stop()
         self._pa.terminate()
 
-    def audio(self, path: Union[str, os.PathLike], loop: int = 0, stream: int = 0, delay: Union[int, float] = 0.1, daemon: Optional[bool] = None, exception_on_underflow: bool = False) -> None:
+    def audio(self, path: _Union[str, _os.PathLike], loop: int = 0, stream: int = 0, delay: _Union[int, float] = 0.1, daemon: _Optional[bool] = None, exception_on_underflow: bool = False) -> None:
         """
         Start the audio. This function is meant for use by the class and not for general use.
 
@@ -906,7 +909,7 @@ class Audio:
 
         exception_on_underflow (optional): Specifies whether an exception should be thrown (or silently ignored) on buffer underflow. Defaults to `False` for improved performance, especially on slower platforms.
         """
-        def create_pipe_wrapper(previous_pipe: Optional[subprocess.Popen] = None, read_thread: Optional[threading.Thread] = None, create_new_pipe: bool = True) -> Optional[Tuple[subprocess.Popen, threading.Thread]]:
+        def create_pipe_wrapper(previous_pipe: _Optional[_subprocess.Popen] = None, read_thread: _Optional[_threading.Thread] = None, create_new_pipe: bool = True) -> _Optional[_Tuple[_subprocess.Popen, _threading.Thread]]:
             """
             A wrapper for `create_pipe()`. This function closes the previous pipe (if it's given) then it returns a pipe contains the output of `ffmpeg` with a `threading.Thread` object (if `create_new_pipe` is `True`).
 
@@ -940,12 +943,12 @@ class Audio:
             if self.stream_information == None:
                 self.stream_information = stream_information
 
-            read_thread = threading.Thread(target = read_stderr, args = (pipe.stderr,), daemon = daemon)
+            read_thread = _threading.Thread(target = read_stderr, args = (pipe.stderr,), daemon = daemon)
             read_thread.start()
 
             return pipe, read_thread
 
-        def read_stderr(stderr: BinaryIO) -> None:
+        def read_stderr(stderr: _BinaryIO) -> None:
             """
             Read bytes from stderr and assign it to `stderr` variable of this instance.
 
@@ -980,26 +983,26 @@ class Audio:
 
                     self._reposition = False
                     self._chunk_time = position if duration == None or position < self._duration else self._duration
-                    self._start = time.monotonic_ns()
+                    self._start = _time.monotonic_ns()
 
                 if self.get_pause():
                     if self._pause_offset == None:
-                        self._pause_offset = min(self.nanoseconds_to_seconds(max(time.monotonic_ns() - self._start, 0)), self._chunk_length) if self._start != None else 0
+                        self._pause_offset = min(self.nanoseconds_to_seconds(max(_time.monotonic_ns() - self._start, 0)), self._chunk_length) if self._start != None else 0
 
-                    time.sleep(delay)
+                    _time.sleep(delay)
                     continue
 
                 data = pipe.stdout.read(chunk)
                 if data:
-                    data = audioop.mul(data, audioop_format, self._volume)
+                    data = _mul(data, audioop_format, self._volume)
 
                     if self._start == None:
-                        self._start = time.monotonic_ns()
+                        self._start = _time.monotonic_ns()
 
                     stream_out.write(data, exception_on_underflow = exception_on_underflow)
 
                     self._chunk_time += self._chunk_length
-                    self._start = time.monotonic_ns()
+                    self._start = _time.monotonic_ns()
                     continue
 
                 if loop == 0:
@@ -1011,7 +1014,7 @@ class Audio:
                 pipe, read_thread = create_pipe_wrapper(pipe, read_thread)
 
                 self._chunk_time = 0
-                self._start = time.monotonic_ns()
+                self._start = _time.monotonic_ns()
         except Exception as exception:
             self.exception = exception
         finally:
@@ -1032,7 +1035,7 @@ class Audio:
             self.currently_pause = False
 
     @staticmethod
-    def nanoseconds_to_seconds(time_in_nanoseconds: Union[int, float]) -> Union[int, float]:
+    def nanoseconds_to_seconds(time_in_nanoseconds: _Union[int, float]) -> _Union[int, float]:
         """
         Convert nanoseconds to seconds.
 
@@ -1049,7 +1052,7 @@ class Audio:
         return time_in_nanoseconds / 1000000000
 
     @staticmethod
-    def seconds_to_nanoseconds(time_in_seconds: Union[int, float]) -> Union[int, float]:
+    def seconds_to_nanoseconds(time_in_seconds: _Union[int, float]) -> _Union[int, float]:
         """
         Convert seconds to nanoseconds.
 
