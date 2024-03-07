@@ -1,11 +1,12 @@
 """
 A module for working with audio.
 """
-import gc
-from typing import Iterable, Tuple
+import gc as _gc
+from typing import Iterable as _Iterable, Tuple as _Tuple
+
 from ..constants import AudioClass
 
-def init(classes: Iterable = []) -> Tuple[str, ...]:
+def init(classes: _Iterable = []) -> _Tuple[str, ...]:
     """
     Initialize the mixer module and return successfully initialized classes.
 
@@ -32,7 +33,7 @@ def init(classes: Iterable = []) -> Tuple[str, ...]:
 
     return (*successfully_initialized,)
 
-def quit(classes: Iterable = []) -> Tuple[str, ...]:
+def quit(classes: _Iterable = []) -> _Tuple[str, ...]:
     """
     Uninitialize the mixer module and return successfully uninitialized classes.
 
@@ -57,5 +58,5 @@ def quit(classes: Iterable = []) -> Tuple[str, ...]:
         except NameError:
             pass
 
-    gc.collect()
+    _gc.collect()
     return (*successfully_uninitialized,)
