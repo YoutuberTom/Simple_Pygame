@@ -1,26 +1,28 @@
 """
 A module for working with the terminal.
 """
-import enum, sys
-from typing import Union
+import enum as _enum, sys as _sys
+from typing import Union as _Union
 
 try:
-    import msvcrt
+    import msvcrt as _msvcrt
 
     os_name = "Windows"
-except ModuleNotFoundError:
+except ImportError:
     try:
-        import fcntl, os
+        import fcntl as _fcntl
+        from os import O_NONBLOCK as _O_NONBLOCK
+
         from . import pygetch
 
         os_name = "Unix"
-    except ModuleNotFoundError:
+    except ImportError:
         raise OSError("This module doesn't support your OS.") from None
 
 characters = """0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ """
 bytes_characters = b"""0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ """
 
-class Keys_Windows(enum.Enum):
+class Keys_Windows(_enum.Enum):
     """
     An enum class that contains Windows keys for convenient representation.
     """
@@ -53,7 +55,7 @@ class Keys_Windows(enum.Enum):
     Ctrl_C = b"\x03"
     Unknown = "Unknown"
 
-class Keys_Unix(enum.Enum):
+class Keys_Unix(_enum.Enum):
     """
     An enum class that contains Unix keys for convenient representation.
     """
@@ -84,23 +86,23 @@ class Keys_Unix(enum.Enum):
     Ctrl_C = "\x03"
     Unknown = "Unknown"
 
-def getch_Windows() -> Union[Keys_Windows, str]:
+def getch_Windows() -> _Union[Keys_Windows, str]:
     """
     Read a keypress and return the resulting character as a `Keys_Windows` object or as a string.
     """
-    key = msvcrt.getch()
+    key = _msvcrt.getch()
 
     if key in (b"\x00", b"\xe0"):
-        key = b"\x00" + msvcrt.getch()
+        key = b"\x00" + _msvcrt.getch()
     elif key in bytes_characters:
-        return key.decode(sys.stdin.encoding)
+        return key.decode(_sys.stdin.encoding)
 
     try:
         return Keys_Windows(key)
     except ValueError:
         return Keys_Windows.Unknown
 
-def getch_Unix() -> Union[Keys_Unix, str]:
+def getch_Unix() -> _Union[Keys_Unix, str]:
     """
     Read a keypress and return the resulting character as a `Keys_Unix` object or as a string.
     """
@@ -109,8 +111,8 @@ def getch_Unix() -> Union[Keys_Unix, str]:
     pygetch.setcooked()
 
     if key == "\x1b":
-        flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
-        fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        flags = _fcntl.fcntl(_sys.stdin, _fcntl.F_GETFL)
+        _fcntl.fcntl(_sys.stdin, _fcntl.F_SETFL, flags | _O_NONBLOCK)
 
         while True:
             data = pygetch.getch()
@@ -118,7 +120,7 @@ def getch_Unix() -> Union[Keys_Unix, str]:
                 break
             key += data
 
-        fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags)
+        _fcntl.fcntl(_sys.stdin, _fcntl.F_SETFL, flags)
     elif key in characters:
         return key
 
