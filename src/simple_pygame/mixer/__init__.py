@@ -28,7 +28,7 @@ def init(classes: _Iterable = []) -> _Tuple[str, ...]:
             global Audio
             from .audio import Audio
             successfully_initialized.append(AudioClass)
-        except ModuleNotFoundError:
+        except ImportError:
             pass
 
     return (*successfully_initialized,)
