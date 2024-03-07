@@ -35,7 +35,7 @@ def init(modules: _Iterable = []) -> _Tuple[str, ...]:
             global transform
             from . import transform
             successfully_imported.append(TransformModule)
-        except ModuleNotFoundError:
+        except ImportError:
             pass
 
     if modules_len == 0 or TerminalModule in modules:
@@ -43,7 +43,7 @@ def init(modules: _Iterable = []) -> _Tuple[str, ...]:
             global terminal
             from . import terminal
             successfully_imported.append(TerminalModule)
-        except ModuleNotFoundError:
+        except ImportError:
             pass
 
     return (*successfully_imported,)
