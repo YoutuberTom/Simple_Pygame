@@ -1,23 +1,22 @@
 """
 The built-in `audioop` module but implemented in Python.
 """
-import struct, sys
-from array import array
+import struct as _struct
+from array import array as _array
+from sys import byteorder as _byteorder
 try:
-    from math import gcd
+    from math import gcd as _gcd
 except ImportError:
-    from fractions import gcd
+    from fractions import gcd as _gcd
 try:
-    from builtins import min as builtin_min, max as builtin_max
+    from builtins import min as _min, max as _max
 except ImportError:
-    from __builtin__ import min as builtin_min, max as builtin_max
-from typing import Union, Optional, Callable, Generator, Sized, Tuple
+    from __builtin__ import min as _min, max as _max
+from typing import Union as _Union, Optional as _Optional, Callable as _Callable, Generator as _Generator, Sized as _Sized, Tuple as _Tuple
 
-AdpcmState = Tuple[int, int]
-RatecvState = Tuple[int, Tuple[Tuple[int, int], ...]]
-ReadableBuffer = Union[bytes, bytearray, array, memoryview]
-
-is_big_endian = sys.byteorder != "little"
+AdpcmState = _Tuple[int, int]
+RatecvState = _Tuple[int, _Tuple[_Tuple[int, int], ...]]
+ReadableBuffer = _Union[bytes, bytearray, _array, memoryview]
 
 class error(Exception):
     pass
@@ -71,24 +70,24 @@ def _struct_format(size: int, signed: bool) -> str:
 def _pack_int24(buffer: ReadableBuffer, offset: int, value: int) -> None:
     buffer = memoryview(buffer)
 
-    if is_big_endian:
-        buffer[offset + 2] = value & 0xff
-        buffer[offset + 1] = (value >> 8) & 0xff
-        buffer[offset] = (value >> 16) & 0xff
-    else:
+    if _byteorder == "little":
         buffer[offset] = value & 0xff
         buffer[offset + 1] = (value >> 8) & 0xff
         buffer[offset + 2] = (value >> 16) & 0xff
+    else:
+        buffer[offset + 2] = value & 0xff
+        buffer[offset + 1] = (value >> 8) & 0xff
+        buffer[offset] = (value >> 16) & 0xff
 
 def _unpack_int24(buffer: ReadableBuffer) -> int:
-    if is_big_endian:
-        value = (buffer[2] & 0xff) | ((buffer[1] & 0xff) << 8) | ((buffer[0] & 0xff) << 16)
-    else:
+    if _byteorder == "little":
         value = (buffer[0] & 0xff) | ((buffer[1] & 0xff) << 8) | ((buffer[2] & 0xff) << 16)
+    else:
+        value = (buffer[2] & 0xff) | ((buffer[1] & 0xff) << 8) | ((buffer[0] & 0xff) << 16)
 
     return value - 0x1000000 if value & 0x800000 else value
 
-def _sample_count(buffer: Sized, size: int) -> int:
+def _sample_count(buffer: _Sized, size: int) -> int:
     return len(buffer) // size
 
 def _get_sample(buffer: ReadableBuffer, size: int, index: int, signed: bool = True) -> int:
@@ -96,17 +95,17 @@ def _get_sample(buffer: ReadableBuffer, size: int, index: int, signed: bool = Tr
     end = start + size
     buffer = memoryview(buffer)[start:end]
 
-    return _unpack_int24(buffer) if size == 3 else struct.unpack_from(_struct_format(size, signed), buffer)[0]
+    return _unpack_int24(buffer) if size == 3 else _struct.unpack_from(_struct_format(size, signed), buffer)[0]
 
-def _get_samples(buffer: ReadableBuffer, size: int, signed: bool = True) -> Generator[int, None, None]:
+def _get_samples(buffer: ReadableBuffer, size: int, signed: bool = True) -> _Generator[int, None, None]:
     for index in range(_sample_count(buffer, size)):
         yield _get_sample(buffer, size, index, signed)
 
 def _put_sample(buffer: ReadableBuffer, size: int, index: int, value: int, signed: bool = True) -> None:
-    _pack_int24(buffer, index * size, value) if size == 3 else struct.pack_into(_struct_format(size, signed), buffer, index * size, value)
+    _pack_int24(buffer, index * size, value) if size == 3 else _struct.pack_into(_struct_format(size, signed), buffer, index * size, value)
 
-def _get_clipfn(size: int, signed: bool = True) -> Callable[[int], int]:
-    return lambda value: builtin_min(builtin_max(value, _get_minval(size, signed)), _get_maxval(size, signed))
+def _get_clipfn(size: int, signed: bool = True) -> _Callable[[int], int]:
+    return lambda value: _min(_max(value, _get_minval(size, signed)), _get_maxval(size, signed))
 
 def _overflow(value: int, size: int, signed: bool = True) -> int:
     if _get_minval(size, signed) <= value <= _get_maxval(size, signed):
@@ -253,7 +252,7 @@ def findfactor(fragment: bytes, reference: bytes) -> float:
     sample_count = _sample_count(fragment, 2)
     return _sum2(fragment, reference, sample_count) / _sum2(reference, reference, sample_count)
 
-def findfit(fragment: bytes, reference: bytes) -> Tuple[int, float]:
+def findfit(fragment: bytes, reference: bytes) -> _Tuple[int, float]:
     """
     Try to match reference as well as possible to a portion of fragment.
     """
@@ -373,7 +372,7 @@ def max(fragment: bytes, width: int) -> int:
     """
     _check_params(len(fragment), width)
 
-    return 0 if len(fragment) == 0 else builtin_max(abs(sample) for sample in _get_samples(fragment, width))
+    return 0 if len(fragment) == 0 else _max(abs(sample) for sample in _get_samples(fragment, width))
 
 def maxpp(fragment: bytes, width: int) -> int:
     """
@@ -412,7 +411,7 @@ def maxpp(fragment: bytes, width: int) -> int:
 
     return maximum
 
-def minmax(fragment: bytes, width: int) -> Tuple[int, int]:
+def minmax(fragment: bytes, width: int) -> _Tuple[int, int]:
     """
     Return the minimum and maximum values of all samples in the sound fragment.
     """
@@ -420,12 +419,12 @@ def minmax(fragment: bytes, width: int) -> Tuple[int, int]:
 
     min_sample, max_sample = 0x7fffffff, -0x80000000
     for sample in _get_samples(fragment, width):
-        min_sample = builtin_min(sample, min_sample)
-        max_sample = builtin_max(sample, max_sample)
+        min_sample = _min(sample, min_sample)
+        max_sample = _max(sample, max_sample)
 
     return min_sample, max_sample
 
-def mul(fragment: bytes, width: int, factor: Union[int, float]) -> bytes:
+def mul(fragment: bytes, width: int, factor: _Union[int, float]) -> bytes:
     """
     Return a fragment that has all samples in the original fragment multiplied by the floating-point value factor.
     """
@@ -440,7 +439,7 @@ def mul(fragment: bytes, width: int, factor: Union[int, float]) -> bytes:
 
     return bytes(result)
 
-def ratecv(fragment: bytes, width: int, number_of_channels: int, in_rate: int, out_rate: int, state: Optional[RatecvState], weight_A: int = 1, weight_B: int = 0) -> Tuple[bytes, RatecvState]:
+def ratecv(fragment: bytes, width: int, number_of_channels: int, in_rate: int, out_rate: int, state: _Optional[RatecvState], weight_A: int = 1, weight_B: int = 0) -> _Tuple[bytes, RatecvState]:
     """
     Convert the frame rate of the input fragment.
     """
@@ -464,7 +463,7 @@ def ratecv(fragment: bytes, width: int, number_of_channels: int, in_rate: int, o
     if in_rate <= 0 or out_rate <= 0:
         raise error("sampling rate not > 0")
 
-    d = gcd(in_rate, out_rate)
+    d = _gcd(in_rate, out_rate)
     in_rate //= d
     out_rate //= d
 
@@ -574,7 +573,7 @@ def tostereo(fragment: bytes, width: int, left_factor: float, right_factor: floa
 
     return bytes(result)
 
-def adpcm2lin(fragment: bytes, width: int, state: Optional[AdpcmState]) -> Tuple[bytes, AdpcmState]:
+def adpcm2lin(fragment: bytes, width: int, state: _Optional[AdpcmState]) -> _Tuple[bytes, AdpcmState]:
     """
     Decode an Intel/DVI ADPCM coded fragment to a linear fragment.
     """
@@ -586,7 +585,7 @@ def alaw2lin(fragment: bytes, width: int) -> bytes:
     """
     raise NotImplementedError("alaw2lin() hasn't been implemented.")
 
-def lin2adpcm(fragment: bytes, width: int, state: Optional[AdpcmState]) -> Tuple[bytes, AdpcmState]:
+def lin2adpcm(fragment: bytes, width: int, state: _Optional[AdpcmState]) -> _Tuple[bytes, AdpcmState]:
     """
     Convert samples to 4 bit Intel/DVI ADPCM encoding.
     """
