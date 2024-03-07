@@ -1,13 +1,14 @@
 """
 Simple Pygame is a Python library that provides many features using Pygame and other libraries. It can help you create multimedia programs much easier and cleaner.
 """
-import gc
-from typing import Iterable, Tuple
+import gc as _gc
+from typing import Iterable as _Iterable, Tuple as _Tuple
+
+from . import mixer
 from .constants import *
 from .exceptions import *
-from . import mixer
 
-def init(modules: Iterable = []) -> Tuple[str, ...]:
+def init(modules: _Iterable = []) -> _Tuple[str, ...]:
     """
     Import/Initialize Simple Pygame modules and return successfully imported/initialized modules.
 
@@ -47,7 +48,7 @@ def init(modules: Iterable = []) -> Tuple[str, ...]:
 
     return (*successfully_imported,)
 
-def quit(modules: Iterable = []) -> Tuple[str, ...]:
+def quit(modules: _Iterable = []) -> _Tuple[str, ...]:
     """
     Quit/Uninitialize Simple Pygame modules and return successfully quit/uninitialized modules.
 
@@ -85,5 +86,5 @@ def quit(modules: Iterable = []) -> Tuple[str, ...]:
         except NameError:
             pass
 
-    gc.collect()
+    _gc.collect()
     return (*successfully_quit,)
