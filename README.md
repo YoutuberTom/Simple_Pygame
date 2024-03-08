@@ -8,7 +8,15 @@ Simple Pygame is a [Python](https://www.python.org/) library that provides many 
 
 # **Dependencies:**
 
-## Python version:
+As each of the library components has different requirements, you only need to install the dependencies for the component you wish to use.
+
+## Python:
+
+### Minimum supported version:
+
+    Python == 3.5.0
+
+### Fully supported versions:
 
     Python >= 3.7.0
 
