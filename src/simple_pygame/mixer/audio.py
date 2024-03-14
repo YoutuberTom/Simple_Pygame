@@ -1,5 +1,5 @@
 """
-A module for playing audio.
+A module for playing streamed audio.
 
 Requirements
 ------------
@@ -26,7 +26,7 @@ except ImportError:
 class Audio:
     def __init__(self, path: _Optional[_Union[str, _os.PathLike]] = None, stream: int = 0, chunk: int = 4096, frames_per_buffer: _Union[int, _Any] = _pyaudio.paFramesPerBufferUnspecified, data_format: _Any = SInt16, encoding: _Optional[str] = None, use_ffmpeg: bool = False, loglevel: str = "quiet", ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe") -> None:
         """
-        An audio object from a file contains audio. This class won't load the entire file.
+        An audio object that allows you to play streamed audio in a controllable way. The audio is decoded as it's being played and it never actually loaded all at once.
 
         Requirements
         ------------
@@ -50,7 +50,7 @@ class Audio:
 
         data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
 
-        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Defaults to `None`.
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
@@ -101,7 +101,7 @@ class Audio:
         self.stream = stream
         self.chunk = chunk
         self.frames_per_buffer = frames_per_buffer
-        self.set_format(data_format)
+        self.data_format = data_format
         self.encoding = encoding
         self.use_ffmpeg = use_ffmpeg
         self.loglevel = loglevel
@@ -109,7 +109,7 @@ class Audio:
         self.ffprobe_path = ffprobe_path
         self.input_options = ["-accurate_seek"]
         self.output_options = []
-        self.currently_pause = False
+        self.is_paused = False
         self.exception = None
         self.returncode = None
         self.stderr = None
@@ -130,6 +130,87 @@ class Audio:
 
         self._pa = _pyaudio.PyAudio()
 
+    @property
+    def data_format(self) -> _Any:
+        """
+        Output data format.
+        """
+        return self._data_format
+
+    @data_format.setter
+    def data_format(self, data_format: _Any) -> None:
+        try:
+            self.pyaudio_format, self.ffmpeg_format, self.audioop_format = {
+                SInt8: (_pyaudio.paInt8, "s8", 1),
+                SInt16: (_pyaudio.paInt16, "s16le" if _byteorder == "little" else "s16be", 2),
+                SInt24: (_pyaudio.paInt24, "s24le" if _byteorder == "little" else "s24be", 3),
+                SInt32: (_pyaudio.paInt32, "s32le" if _byteorder == "little" else "s32be", 4),
+                UInt8: (_pyaudio.paUInt8, "u8", 1)
+            }[data_format]
+
+            self._data_format = data_format
+        except KeyError:
+            raise ValueError("Invalid data format.") from None
+
+    @property
+    def is_paused(self) -> bool:
+        """
+        An attribute whose value is `True` if the audio is currently paused, otherwise `False`.
+        """
+        return self._is_paused if self.is_busy else False
+
+    @is_paused.setter
+    def is_paused(self, value: _Any) -> None:
+        self._is_paused = value
+
+    @property
+    def position(self) -> _Any:
+        """
+        The current audio's position in seconds. This attribute's value is an integer/a float if the audio is currently playing or paused, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
+        """
+        if not self.is_busy:
+            return AudioEnded
+
+        if self._start == None:
+            return AudioIsLoading
+
+        return min(self._chunk_time + (self._pause_offset if self.is_paused and self._pause_offset != None else min(self.nanoseconds_to_seconds(max(_time.monotonic_ns() - self._start, 0)), self._chunk_length)), 0 if self._duration == None else self._duration)
+
+    @position.setter
+    def position(self, position: _Union[int, float]) -> None:
+        if not isinstance(position, (int, float)):
+            raise TypeError("Position must be an integer/a float.")
+
+        if self.is_busy:
+            self._position = 0 if position < 0 else position
+            self._reposition = True
+        else:
+            self.play(start = position)
+
+    @property
+    def volume(self) -> _Union[int, float]:
+        """
+        The audio's volume.
+        """
+        return self._volume
+
+    @volume.setter
+    def volume(self, volume: _Union[int, float]) -> None:
+        if not isinstance(volume, (int, float)):
+            raise TypeError("Volume must be an integer/a float.")
+
+        if volume < 0:
+            raise ValueError("Volume must be non-negative.")
+
+        self._volume = volume
+
+    @property
+    def is_busy(self) -> bool:
+        """
+        A read-only attribute whose value is `True` if the audio is currently playing or paused, otherwise `False`.
+        """
+        return self._audio_thread.is_alive() if self._audio_thread else False
+
     @classmethod
     def get_information(self, path: _Union[str, _os.PathLike], encoding: _Optional[str] = None, use_ffmpeg: bool = False, executable_path: str = "ffprobe") -> _Dict[str, _Any]:
         """
@@ -140,7 +221,7 @@ class Audio:
 
         path: Path to the file to get information.
 
-        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Defaults to `None`.
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
@@ -169,7 +250,7 @@ class Audio:
 
         if use_ffmpeg:
             try:
-                result = _subprocess.run([executable_path, "-i", path], stderr = _subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags, encoding = encoding, text = True)
+                result = _subprocess.run((executable_path, "-i", path), stderr = _subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags, encoding = encoding, text = True)
             except FileNotFoundError:
                 raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
             except LookupError:
@@ -184,7 +265,7 @@ class Audio:
             return self.extract_information(raw_data)
         else:
             try:
-                return _loads(_subprocess.run([executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path], stdout = _subprocess.PIPE, stderr = _subprocess.DEVNULL, startupinfo = startupinfo, creationflags = creationflags, check = True, encoding = encoding, text = True).stdout)
+                return _loads(_subprocess.run((executable_path, "-print_format", "json", "-show_format", "-show_programs", "-show_streams", "-show_chapters", "-i", path), stdout = _subprocess.PIPE, stderr = _subprocess.DEVNULL, startupinfo = startupinfo, creationflags = creationflags, check = True, encoding = encoding, text = True).stdout)
             except FileNotFoundError:
                 raise FFprobeError("No ffprobe found on your system. Make sure you've it installed and you can try specifying the ffprobe path.") from None
             except _subprocess.CalledProcessError:
@@ -431,7 +512,7 @@ class Audio:
 
         stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if the given stream is invalid.
 
-        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Defaults to `None`.
 
         data_format (optional): Output data format for `ffmpeg`. Use `self.ffmpeg_format` if the given data format is `None`.
 
@@ -512,7 +593,7 @@ class Audio:
             creationflags = 0
 
         try:
-            return _subprocess.Popen([ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:1"], stdin = _subprocess.DEVNULL, stdout = _subprocess.PIPE, stderr = _subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags), information, audio_streams[stream]
+            return _subprocess.Popen((ffmpeg_path, *input_options, "-loglevel", loglevel, "-ss", str(position), "-i", path, *output_options, "-map", f"0:a:{stream}", "-f", data_format, f"pipe:1"), stdin = _subprocess.DEVNULL, stdout = _subprocess.PIPE, stderr = _subprocess.PIPE, startupinfo = startupinfo, creationflags = creationflags), information, audio_streams[stream]
         except FileNotFoundError:
             raise FFmpegError("No ffmpeg found on your system. Make sure you've it installed and you can try specifying the ffmpeg path.") from None
 
@@ -533,7 +614,7 @@ class Audio:
 
         data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
 
-        encoding (optional): Encoding for decoding. Use the default encoding if the given encoding is `None`.
+        encoding (optional): Encoding for decoding. Defaults to `None`.
 
         use_ffmpeg (optional): Specifies whether to use `ffmpeg` or `ffprobe` to get the file's information.
 
@@ -584,7 +665,7 @@ class Audio:
         self.stream = stream
         self.chunk = chunk
         self.frames_per_buffer
-        self.set_format(data_format)
+        self.data_format = data_format
         self.encoding = encoding
         self.use_ffmpeg = use_ffmpeg
         self.loglevel = loglevel
@@ -600,16 +681,7 @@ class Audio:
 
         data_format (optional): Specifies what output data format to use. Defaults to `simple_pygame.SInt16`.
         """
-        try:
-            self.pyaudio_format, self.ffmpeg_format, self.audioop_format = {
-                SInt8: (_pyaudio.paInt8, "s8", 1),
-                SInt16: (_pyaudio.paInt16, "s16le" if _byteorder == "little" else "s16be", 2),
-                SInt24: (_pyaudio.paInt24, "s24le" if _byteorder == "little" else "s24be", 3),
-                SInt32: (_pyaudio.paInt32, "s32le" if _byteorder == "little" else "s32be", 4),
-                UInt8: (_pyaudio.paUInt8, "u8", 1)
-            }[data_format]
-        except KeyError:
-            raise ValueError("Invalid data format.") from None
+        self.data_format = data_format
 
     def get_device_count(self) -> int:
         """
@@ -672,7 +744,7 @@ class Audio:
 
         start (optional): Where the audio starts playing in seconds.
 
-        delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
+        delay (optional): Interval between each check to determine if the audio has resumed when it's currently paused in seconds.
 
         daemon (optional): Specifies whether the audio thread is a daemon thread.
 
@@ -709,7 +781,7 @@ class Audio:
         if stream_information != None and not isinstance(stream_information, dict):
             raise TypeError("Stream information must be None/a dict.")
 
-        self.currently_pause = False
+        self.is_paused = False
         self.exception = None
         self.returncode = None
         self.stderr = None
@@ -730,18 +802,18 @@ class Audio:
 
     def pause(self) -> None:
         """
-        Pause the audio if it's currently playing and not pausing. It can be resumed with `resume()`.
+        Pause the audio if it's currently playing and not paused. It can be resumed with `resume()`.
         """
-        if self.get_busy() and not self.get_pause():
-            self.currently_pause = True
+        if self.is_busy and not self.is_paused:
+            self.is_paused = True
 
     def resume(self) -> None:
         """
         Resume the audio after it has been paused.
         """
-        if not self.get_busy() or not self.get_pause():
+        if not self.is_busy or not self.is_paused:
             return
-        self.currently_pause = False
+        self.is_paused = False
 
         if self._pause_offset != None:
             self._start = _time.monotonic_ns() - self.seconds_to_nanoseconds(self._pause_offset)
@@ -761,11 +833,11 @@ class Audio:
         elif delay < 0:
             raise ValueError("Delay must be non-negative.")
 
-        if not self.get_busy():
+        if not self.is_busy:
             return
 
         self._terminate = True
-        while self.get_busy():
+        while self.is_busy:
             _time.sleep(delay)
         self._audio_thread = None
 
@@ -776,7 +848,7 @@ class Audio:
         Parameters
         ----------
 
-        timeout (optional): Specifies the timeout for the operation (playing the audio) in seconds (or fractions thereof). Block until the thread terminates if the given timeout is `None`.
+        timeout (optional): Specifies the timeout for blocking the calling thread in seconds (or fractions thereof). Block until the audio thread terminates if the given timeout is `None`.
 
         raise_exception (optional): Specifies whether an exception should be thrown (or silently ignored).
         """
@@ -792,48 +864,26 @@ class Audio:
 
     def get_pause(self) -> bool:
         """
-        Return `True` if the audio is currently pausing, otherwise `False`.
+        Return `True` if the audio is currently paused, otherwise `False`.
         """
-        return self.currently_pause if self.get_busy() else False
+        return self.is_paused
 
     def set_position(self, position: _Union[int, float]) -> None:
         """
-        Set the audio's position where the audio will continue to play.
+        Set the audio's position where the audio will continue to play. This is equal to calling `play(start = position)` if the audio isn't playing.
 
         Parameters
         ----------
 
         position: Where to set the audio's position in seconds.
         """
-        if not isinstance(position, (int, float)):
-            raise TypeError("Position must be an integer/a float.")
+        self.position = position
 
-        if self.get_busy():
-            self._position = 0 if position < 0 else position
-            self._reposition = True
-        else:
-            self.play(start = position)
-
-    def get_position(self, digit: _Optional[int] = 4) -> _Any:
+    def get_position(self) -> _Any:
         """
-        Return the current audio's position in seconds if the audio currently playing or pausing, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
-
-        Parameters
-        ----------
-
-        digit (optional): Number of digits for rounding.
+        Return the current audio's position in seconds if the audio is currently playing or paused, `simple_pygame.AudioIsLoading` if the audio is loading, otherwise `simple_pygame.AudioEnded`.
         """
-        if digit != None and not isinstance(digit, int):
-            raise TypeError("Digit must be None/an integer.")
-
-        if not self.get_busy():
-            return AudioEnded
-
-        if self._start == None:
-            return AudioIsLoading
-
-        position = min([self._chunk_time + (self._pause_offset if self.get_pause() and self._pause_offset != None else min(self.nanoseconds_to_seconds(max(_time.monotonic_ns() - self._start, 0)), self._chunk_length)), self._duration][:1 if self._duration == None else 2])
-        return position if digit == None else round(position, digit)
+        return self.position
 
     def set_volume(self, volume: _Union[int, float]) -> None:
         """
@@ -844,25 +894,19 @@ class Audio:
 
         volume: The audio's volume (`1` is the original volume).
         """
-        if not isinstance(volume, (int, float)):
-            raise TypeError("Volume must be an integer/a float.")
-
-        if volume >= 0:
-            self._volume = volume
-        else:
-            raise ValueError("Volume must be non-negative.")
+        self.volume = volume
 
     def get_volume(self) -> _Union[int, float]:
         """
         Return the audio's volume.
         """
-        return self._volume
+        return self.volume
 
     def get_busy(self) -> bool:
         """
-        Return `True` if the audio is currently playing or pausing, otherwise `False`.
+        Return `True` if the audio is currently playing or paused, otherwise `False`.
         """
-        return self._audio_thread.is_alive() if self._audio_thread else False
+        return self.is_busy
 
     def get_exception(self) -> None:
         """
@@ -903,7 +947,7 @@ class Audio:
 
         stream (optional): Which stream to use if the file has more than 1 audio streams. Use the default stream if the given stream is invalid.
 
-        delay (optional): Interval between each check to determine if the audio has resumed when it's currently pausing in seconds.
+        delay (optional): Interval between each check to determine if the audio has resumed when it's currently paused in seconds.
 
         daemon (optional): Specifies whether the read thread is a daemon thread.
 
@@ -985,7 +1029,7 @@ class Audio:
                     self._chunk_time = position if duration == None or position < self._duration else self._duration
                     self._start = _time.monotonic_ns()
 
-                if self.get_pause():
+                if self.is_paused:
                     if self._pause_offset == None:
                         self._pause_offset = min(self.nanoseconds_to_seconds(max(_time.monotonic_ns() - self._start, 0)), self._chunk_length) if self._start != None else 0
 
@@ -1032,7 +1076,7 @@ class Audio:
             except NameError:
                 pass
 
-            self.currently_pause = False
+            self.is_paused = False
 
     @staticmethod
     def nanoseconds_to_seconds(time_in_nanoseconds: _Union[int, float]) -> _Union[int, float]:
